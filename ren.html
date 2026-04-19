@@ -3,23 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ Energy Monitoring System</title>
+    <title>⚡ Nexus Prime | IoT Infrastructure v34.1</title>
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
         
         :root {
-            /* Master Grade Cyber Palette (Dark) */
             --primary: #6366f1;
             --accent: #f43f5e;
             --neon: #22d3ee;
-            --bg-canvas: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+            --bg-canvas: #020617;
             --component-bg: rgba(15, 23, 42, 0.85);
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-main: #f8fafc;
@@ -29,8 +28,7 @@
         }
 
         body.light-mode {
-            /* Platinum Industrial Palette (Light) */
-            --bg-canvas: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+            --bg-canvas: #f1f5f9;
             --component-bg: rgba(255, 255, 255, 0.8);
             --glass-border: rgba(99, 102, 241, 0.15);
             --text-main: #1e293b;
@@ -44,176 +42,247 @@
             margin: 0; padding: 0;
             width: 100vw; height: 100vh;
             overflow: hidden;
-            transition: background 0.6s ease, color 0.6s ease;
+            transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* --- Aura Background --- */
         .bg-aura { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
         .blob {
             position: absolute; width: min(80vw, 850px); height: min(80vw, 850px);
-            border-radius: 50%; filter: blur(130px); opacity: 0.35;
+            border-radius: 50%; filter: blur(130px); opacity: 0.25;
             animation: move-blob 25s infinite alternate ease-in-out;
         }
         .blob-1 { top: -10%; left: -10%; background: radial-gradient(circle, var(--primary), transparent 70%); }
         .blob-2 { bottom: -10%; right: -10%; background: radial-gradient(circle, var(--neon), transparent 70%); animation-delay: -5s; }
-        .blob-3 { top: 40%; left: 30%; background: radial-gradient(circle, var(--accent), transparent 70%); animation-delay: -10s; }
 
         @keyframes move-blob {
             0% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(120px, -80px) scale(1.1); }
             100% { transform: translate(-80px, 120px) scale(0.9); }
+        }
+
+        /* --- Splash Screen --- */
+        #splash-screen {
+            position: fixed; inset: 0; z-index: 20000;
+            background: #020617;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1s ease-in-out, transform 1.2s cubic-bezier(0.7, 0, 0.3, 1);
+        }
+        .splash-core {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: radial-gradient(circle, #fff, var(--primary));
+            box-shadow: 0 0 80px var(--primary);
+            animation: splash-pulse 2s infinite ease-in-out;
+            margin-bottom: 2rem;
+        }
+        @keyframes splash-pulse { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.15); opacity: 1; } }
+        
+        /* --- Visual Transitions --- */
+        .fade-slide-up { animation: fadeSlideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(30px); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
         }
 
         .glass {
             background: var(--component-bg);
             backdrop-filter: blur(40px) saturate(180%);
             border: 1px solid var(--glass-border);
-            border-radius: 28px;
-            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.1);
-            transition: transform 0.4s ease;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
+
+        /* 2D Grid Visualizer */
+        #radial-stage { 
+            position: relative; 
+            width: 100%; height: 100%; 
+            display: flex; align-items: center; justify-content: center;
+            overflow: visible;
+        }
+        .power-line { fill: none; stroke: #1e293b; stroke-width: 4; stroke-linecap: round; transition: stroke 0.5s ease; opacity: 0.3; }
+        .power-line.active { stroke: var(--neon); stroke-width: 5; opacity: 1; }
+        .power-line.eco { stroke: var(--eco) !important; }
+        .particle { fill: var(--neon); filter: drop-shadow(0 0 8px var(--neon)); }
+
+        .device-node { position: absolute; transform: translate(-50%, -50%); width: 130px; z-index: 50; }
+        .core-orb {
+            width: 90px; height: 90px;
+            background: radial-gradient(circle, #fff, var(--primary));
+            border-radius: 50%; box-shadow: 0 0 50px var(--primary);
+            animation: core-pulse 3s infinite ease-in-out;
+        }
+        @keyframes core-pulse { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.1); filter: brightness(1.3); } }
+
+        .node-icon-bg {
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid var(--glass-border);
+            border-radius: 20px; padding: 12px;
+            display: flex; align-items: center; justify-content: center; flex-direction: column; width: 100%;
+        }
+        .active-glow { box-shadow: 0 0 30px var(--primary); border-color: var(--primary); }
+
+        @keyframes rotate-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .rotating { animation: rotate-slow 2s linear infinite; }
+        .fan-rotating { animation: rotate-slow 0.5s linear infinite; }
+
+        /* Master Grid Layout */
+        .dashboard-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; }
+        .master-grid { display: grid; grid-template-columns: 24% 52% 24%; gap: 1rem; flex: 1; min-height: 0; padding: 0 1rem 1rem 1rem; }
 
         .btn-glow {
             background: linear-gradient(135deg, var(--primary), var(--accent));
             color: white; border-radius: 14px; padding: 10px 24px; cursor: pointer;
             box-shadow: 0 8px 20px rgba(108, 99, 255, 0.2); border: none;
             font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.3s ease;
         }
-
-        .master-grid {
-            display: grid;
-            grid-template-columns: 25% 50% 25%;
-            gap: 1.25rem;
-            flex: 1;
-            min-height: 0;
-            padding: 0 1.25rem 1.25rem 1.25rem;
-        }
-
-        .flex-lock { height: 100vh; display: flex; flex-direction: column; overflow: hidden; width: 100%; }
-
-        .scanner::after {
-            content: ""; position: absolute; inset: 0; pointer-events: none;
-            background: linear-gradient(to bottom, transparent, rgba(0, 255, 0, 0.03) 50%, transparent);
-            animation: scanline 10s linear infinite;
-        }
-        @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        .btn-glow:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.1); }
 
         .eco-active { background: linear-gradient(135deg, #059669, #00ff00) !important; color: white !important; box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
 
-        @media (max-width: 1024px) {
-            body { overflow-y: auto; }
-            .master-grid { display: flex; flex-direction: column; height: auto; padding: 1rem; }
-            .viz-container { height: 550px !important; flex: none !important; }
-        }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
     </style>
 </head>
 <body id="app-body">
 
+    <!-- 1. SPLASH SCREEN -->
+    <div id="splash-screen">
+        <div class="splash-core"></div>
+        <h1 class="text-3xl font-black tracking-[0.4em] uppercase text-white animate-pulse">Energy Monitoring System</h1>
+        <p class="text-indigo-400 font-mono text-xs mt-4 tracking-widest uppercase opacity-60">Initializing Neural Grid...</p>
+        <div class="w-48 h-1 bg-white/10 rounded-full mt-12 overflow-hidden">
+            <div id="splash-loader" class="h-full bg-indigo-500 transition-all duration-1000" style="width: 0%"></div>
+        </div>
+    </div>
+
     <div class="bg-aura">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
     </div>
 
     <div id="toast-container" class="fixed top-6 right-6 z-[9999] flex flex-col gap-3"></div>
 
-    <!-- Login -->
-    <div id="auth-layer" class="fixed inset-0 z-[10000] flex items-center justify-center p-4 transition-all duration-1000">
-        <div class="glass p-14 rounded-[4rem] w-full max-w-lg text-center relative overflow-hidden shadow-2xl border-t-8 border-indigo-500">
+    <!-- 2. LOGIN LAYER -->
+    <div id="auth-layer" class="fixed inset-0 z-[10000] hidden items-center justify-center p-4 transition-all duration-1000 bg-black/40 backdrop-blur-xl opacity-0">
+        <div class="glass p-16 rounded-[4rem] w-full max-w-lg text-center relative overflow-hidden shadow-2xl border-t-8 border-indigo-500 fade-slide-up">
             <div class="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500/10 blur-[120px]"></div>
             <div class="flex justify-center mb-10">
-                <div class="relative w-28 h-28">
+                <div class="relative w-24 h-24">
                     <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_0_20px_rgba(108,99,255,0.6)]">
                         <defs><linearGradient id="primeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:var(--primary);stop-opacity:1" /><stop offset="100%" style="stop-color:var(--neon);stop-opacity:1" /></linearGradient></defs>
                         <path d="M55 10 L30 55 H50 L45 90 L70 45 H50 L55 10 Z" fill="url(#primeGrad)" />
-                        <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="1.5" class="text-indigo-500/20" />
                     </svg>
                 </div>
             </div>
-            <h1 class="text-4xl font-black mb-2 tracking-tighter uppercase">Powerwatch</h1>
-            <p class="text-dim mb-10 font-bold text-xs uppercase tracking-[0.4em]">GridEye</p>
+            <h1 class="text-4xl font-black mb-2 tracking-tighter uppercase">Nexus Prime</h1>
+            <p class="text-dim mb-10 font-bold text-xs uppercase tracking-[0.4em]">Infrastructure Access Protocol</p>
             <div class="space-y-6">
-                <input id="key-input" type="password" placeholder="SECURITY KEY" value="admin123" class="w-full bg-black/5 border-2 border-black/10 rounded-2xl px-8 py-5 outline-none focus:border-indigo-500 transition-all text-center font-mono tracking-[0.5em] text-xl font-black text-inherit">
-                <button onclick="window.authorize()" class="w-full btn-glow py-6 rounded-2xl font-black text-lg uppercase tracking-widest">Verify Access</button>
+                <div class="relative group">
+                    <input id="key-input" type="password" placeholder="PROTOCOL KEY" value="admin123" class="w-full bg-slate-900/50 border-2 border-slate-700 rounded-2xl px-8 py-5 outline-none focus:border-indigo-500 transition-all text-center font-mono tracking-[0.5em] text-xl font-black text-inherit">
+                </div>
+                <button onclick="handleAuthorize()" class="w-full btn-glow py-6 rounded-2xl font-black text-lg uppercase tracking-widest">Verify Access</button>
             </div>
         </div>
     </div>
 
-    <!-- Main Workspace -->
-    <main id="main-ui" class="hidden opacity-0 transition-all duration-1000 flex-lock">
-        <nav class="flex flex-col md:flex-row justify-between items-center glass px-10 py-4 rounded-[2.5rem] m-5 gap-6 shrink-0 border-2 border-white/10">
+    <!-- 3. MAIN DASHBOARD -->
+    <div id="main-ui" class="hidden opacity-0 transition-all duration-1000 dashboard-container">
+        <nav id="nav-bar" class="flex flex-col md:flex-row justify-between items-center glass px-8 py-3 rounded-[2rem] m-4 gap-4 shrink-0 border-2 border-white/10 translate-y-[-20px] opacity-0 transition-all duration-700">
             <div class="flex items-center gap-6 w-full md:w-auto">
-                <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl text-white"><i data-lucide="activity" class="w-6 h-6"></i></div>
-                <div><h2 class="text-lg font-black tracking-tighter uppercase">Neural Infrastructure</h2><p class="text-[9px] text-indigo-500 font-black tracking-[0.6em]" id="current-clock">--:--:--</p></div>
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg text-white"><i data-lucide="activity" class="w-5 h-5"></i></div>
+                <div><h2 class="text-base font-black tracking-tighter uppercase text-nowrap text-inherit">Infrastructure Monitor</h2><p class="text-[8px] text-indigo-500 font-black tracking-[0.6em]" id="current-clock">--:--:--</p></div>
             </div>
             <div class="flex items-center justify-between md:justify-end gap-5 w-full md:w-auto">
-                <button onclick="window.toggleDarkMode()" class="p-3.5 glass hover:bg-black/5 transition-all text-dim flex items-center justify-center shadow-lg"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
-                <button id="btn-eco" onclick="window.toggleEcoMode()" class="px-8 py-3 glass border-2 border-transparent text-[10px] font-black text-dim hover:text-emerald-500 flex items-center gap-3 transition-all uppercase tracking-widest font-black"><i data-lucide="leaf" class="w-5 h-5"></i> ECO-SAVER</button>
-                <div class="flex items-center gap-4">
-                    <button onclick="window.exportCSV()" class="p-4 glass hover:bg-indigo-600 hover:text-white transition-all text-dim flex items-center justify-center"><i data-lucide="database" class="w-5 h-5"></i></button>
-                    <button onclick="window.location.reload()" class="p-4 glass hover:bg-rose-600 hover:text-white transition-all text-dim flex items-center justify-center"><i data-lucide="power" class="w-5 h-5"></i></button>
+                <button onclick="window.toggleDarkMode()" class="p-2.5 glass hover:bg-black/5 transition-all text-dim flex items-center justify-center shadow-sm"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
+                <button id="btn-eco" onclick="window.toggleEcoMode()" class="px-6 py-2.5 glass border-2 border-transparent text-[9px] font-black text-dim hover:text-emerald-500 flex items-center gap-3 transition-all uppercase tracking-widest font-black"><i data-lucide="leaf" class="w-4 h-4"></i> ECO-SAVER</button>
+                <div class="flex items-center gap-3">
+                    <button onclick="downloadPDF()" class="p-3 glass hover:bg-indigo-600 hover:text-white transition-all text-dim flex items-center justify-center"><i data-lucide="database" class="w-5 h-5"></i></button>
+                    <button onclick="location.reload()" class="p-3 glass hover:bg-rose-600 hover:text-white transition-all text-dim flex items-center justify-center"><i data-lucide="power" class="w-5 h-5"></i></button>
                 </div>
             </div>
         </nav>
 
         <div class="master-grid">
-            <aside class="flex flex-col gap-6 min-h-0 overflow-hidden">
-                <div class="glass p-8 rounded-[3.5rem] flex-1 flex flex-col min-h-0 overflow-hidden border-2 border-white/5">
-                    <h3 class="text-[10px] font-black text-indigo-600 uppercase tracking-[0.6em] mb-6 flex items-center justify-between shrink-0"><span>Switchboard</span></h3>
-                    <div id="device-list" class="space-y-4 overflow-y-auto flex-1 pr-2"></div>
+            <!-- Sidebar Left -->
+            <aside id="side-left" class="flex flex-col gap-4 min-h-0 overflow-hidden translate-x-[-30px] opacity-0 transition-all duration-700 delay-100">
+                <div class="glass p-6 rounded-[2.5rem] flex-1 flex flex-col min-h-0 overflow-hidden border-2 border-white/5">
+                    <div class="flex items-center justify-between shrink-0 mb-4">
+                        <h3 class="text-[9px] font-black text-indigo-600 uppercase tracking-[0.6em]">Switchboard</h3>
+                        <button onclick="window.resetAll()" class="text-[8px] text-rose-500 font-black uppercase hover:underline">Flush</button>
+                    </div>
+                    <!-- Fixed height and scroll to prevent jitter -->
+                    <div id="device-list" class="space-y-3 overflow-y-auto flex-1 pr-2"></div>
                 </div>
-                <div class="glass p-8 rounded-[2.5rem] shrink-0 border-2 border-white/10"><h4 class="text-[10px] font-black text-dim uppercase mb-4 tracking-widest shrink-0">Resilience</h4><div class="flex items-center gap-4"><div class="flex-1 bg-black/10 dark:bg-white/10 h-3 rounded-full overflow-hidden"><div id="health-bar" class="h-full bg-indigo-500 transition-all duration-1000" style="width: 100%"></div></div><span id="health-pct" class="text-sm font-mono font-black text-dim">100%</span></div></div>
+                <div class="glass p-6 rounded-[1.5rem] shrink-0 border-2 border-white/10">
+                    <h4 class="text-[9px] font-black text-dim uppercase mb-3 tracking-widest shrink-0">Resilience</h4>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 bg-black/10 dark:bg-white/10 h-2.5 rounded-full overflow-hidden">
+                            <div id="health-bar" class="h-full bg-indigo-500 transition-all duration-1000" style="width: 100%"></div>
+                        </div>
+                        <span id="health-pct" class="text-xs font-mono font-black text-dim">100%</span>
+                    </div>
+                </div>
             </aside>
 
-            <section class="relative flex flex-col min-h-0 overflow-hidden viz-container">
-                <div id="viz-card" class="rounded-[4rem] overflow-hidden relative flex-1 scanner border-2 border-white/20 bg-black/5">
-                    <div id="three-container" class="absolute inset-0"></div>
-                    
-                    <!-- ANTI-OBSTRUCTION HUD (Corner Capsules) -->
+            <!-- Radial 2D Visualization -->
+            <section id="viz-center" class="relative flex flex-col min-h-0 overflow-hidden viz-container scale-95 opacity-0 transition-all duration-1000 delay-300">
+                <div id="viz-card" class="rounded-[3.5rem] overflow-hidden relative flex-1 border-2 border-white/20 bg-slate-900/50 scanner">
+                    <div id="radial-stage">
+                        <svg id="grid-svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40"><div class="core-orb" id="core-orb"></div></div>
+                        <div id="nodes-container" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+
                     <div class="absolute top-6 left-6 pointer-events-none">
-                        <div class="glass px-5 py-3 rounded-2xl border-l-[6px] border-indigo-500 shadow-2xl backdrop-blur-3xl min-w-[140px]">
+                        <div class="glass px-5 py-3 rounded-2xl border-l-[6px] border-indigo-500 shadow-2xl backdrop-blur-3xl min-w-[130px]">
                             <p class="text-[7px] text-dim uppercase font-black mb-0.5 tracking-tighter">Packet Draw</p>
                             <p id="hud-load" class="text-xl font-black font-mono text-indigo-400">0.00kW</p>
                         </div>
                     </div>
                     <div class="absolute top-6 right-6 pointer-events-none">
-                        <div class="glass px-5 py-3 rounded-2xl border-l-[6px] border-emerald-500 shadow-2xl backdrop-blur-3xl min-w-[140px]">
-                            <p class="text-[7px] text-dim uppercase font-black mb-0.5 tracking-tighter">Usage Cost</p>
+                        <div class="glass px-5 py-3 rounded-2xl border-l-[6px] border-emerald-500 shadow-2xl backdrop-blur-3xl min-w-[130px]">
+                            <p class="text-[7px] text-dim uppercase font-black mb-0.5 tracking-tighter">Utility Cost</p>
                             <p id="hud-cost" class="text-xl font-black font-mono text-emerald-400">₹0.00</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <aside class="flex flex-col gap-6 min-h-0 overflow-hidden">
-                <div class="glass p-6 h-[160px] shrink-0 flex flex-col overflow-hidden border-2 border-white/10"><h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-2 shrink-0">Telemetry Spectrum</h3><div class="flex-1 min-h-0"><canvas id="telemetryChart"></canvas></div></div>
-                <div class="glass p-6 h-[200px] shrink-0 flex flex-col overflow-hidden border-2 border-white/10"><h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-2 text-center">Load Balance</h3><div class="flex-1 min-h-0 flex justify-center"><canvas id="distributionChart"></canvas></div></div>
-                <div class="glass p-8 rounded-[3.5rem] flex-1 flex flex-col min-h-0 overflow-hidden font-black font-black"><h3 class="text-[10px] font-black text-dim uppercase tracking-widest mb-4 shrink-0 text-indigo-500">Traffic Log</h3><div id="log-container" class="flex-1 overflow-y-auto space-y-4 text-[10px] font-mono pr-2 scroll-smooth uppercase font-black"></div></div>
+            <!-- Sidebar Right -->
+            <aside id="side-right" class="flex flex-col gap-4 min-h-0 overflow-hidden translate-x-[30px] opacity-0 transition-all duration-700 delay-500">
+                <div class="glass p-5 flex-1 flex flex-col overflow-hidden border-2 border-white/10 min-h-0">
+                    <h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-2 shrink-0">Telemetry Spectrum</h3>
+                    <div class="flex-1 min-h-0"><canvas id="telemetryChart"></canvas></div>
+                </div>
+                <div class="glass p-5 flex-1 flex flex-col overflow-hidden border-2 border-white/10 min-h-0">
+                    <h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-2 shrink-0 text-center">Radial Balance</h3>
+                    <div class="flex-1 min-h-0 flex justify-center"><canvas id="distributionChart"></canvas></div>
+                </div>
+                <div class="glass p-6 rounded-[2rem] flex-[1.5] flex flex-col min-h-0 overflow-hidden font-black border-2 border-white/10">
+                    <h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-4 shrink-0 text-indigo-500">Traffic stream</h3>
+                    <div id="log-container" class="flex-1 overflow-y-auto space-y-3 text-[10px] font-mono pr-2 scroll-smooth uppercase font-black"></div>
+                </div>
             </aside>
         </div>
-    </main>
+    </div>
 
     <script>
-        /** --- CORE ENGINE --- **/
-        window.safeSetText = function(id, text) { const el = document.getElementById(id); if (el) el.innerText = text; };
-
-        window.addLog = function(msg, type) { 
+        /** --- INITIALIZATION & UTILITIES --- **/
+        window.safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+        
+        window.addLog = (msg, type) => { 
             const c = document.getElementById('log-container'); if (!c) return;
             const div = document.createElement('div');
             const colors = { success: 'text-emerald-500', alert: 'text-rose-500', error: 'text-rose-600', info: 'text-indigo-500' };
-            div.className = `${colors[type] || 'text-dim'} border-l-4 border-current pl-4 py-2 bg-black/5 dark:bg-white/5 rounded-r-2xl shadow-sm mb-3 transition-all hover:translate-x-1`;
+            div.className = `${colors[type] || 'text-dim'} border-l-4 border-current pl-4 py-2 bg-black/5 dark:bg-white/5 rounded-r-xl shadow-sm mb-2 transition-all hover:translate-x-1 fade-slide-up`;
             div.innerHTML = `<span class="opacity-50 text-[8px] block font-black mb-1">${new Date().toLocaleTimeString()}</span>${msg}`;
             c.prepend(div);
         };
 
-        window.showToast = function(msg, type) { 
+        window.showToast = (msg, type) => { 
             const container = document.getElementById('toast-container'); if (!container) return;
             const toast = document.createElement('div');
-            const colors = { success: 'bg-emerald-600', error: 'bg-rose-600', info: 'bg-indigo-600' };
-            toast.className = `${colors[type]} px-10 py-5 rounded-[1.5rem] text-white font-black text-xs shadow-2xl transition-all duration-300 transform scale-0 flex items-center gap-4`;
+            const colors = { info: 'bg-indigo-600', error: 'bg-rose-600', success: 'bg-emerald-600' };
+            toast.className = `${colors[type]} text-white px-8 py-4 rounded-2xl font-black text-xs shadow-2xl transition-all duration-300 transform scale-0 flex items-center gap-4`;
             toast.innerHTML = `<i data-lucide="zap" class="w-5 h-5"></i> ${msg.toUpperCase()}`;
             container.appendChild(toast); lucide.createIcons();
             setTimeout(() => toast.classList.remove('scale-0'), 10);
@@ -225,318 +294,273 @@
             getLoad() { return (this.base + (Math.random() - 0.5) * this.varc); }
         }
 
-        let telChart, distChart;
-        let devices = [];
-        const state = {
-            totalLoad: 0, ecoMode: false, history: Array(25).fill(0),
-            three: { scene: null, camera: null, renderer: null, nodes: [], particles: [], core: null, paths: [], switches: [], bufferLeds: [], raycaster: new THREE.Raycaster(), mouse: new THREE.Vector2() }
-        };
-
         const deviceDefinitions = [
-            { id: 0, type: 'fridge', name: "Neural Chiller", base: 1.2, varc: 0.15, color: '#6366f1' },
-            { id: 1, type: 'washing', name: "Motor IoT84", base: 4.8, varc: 1.5, color: '#a855f7' },
-            { id: 2, type: 'tv', name: "Control Terminal", base: 0.6, varc: 0.05, color: '#f43f5e' },
-            { id: 3, type: 'fan', name: "Stand Fan IoT50", base: 0.4, varc: 0.1, color: '#00c896' },
-            { id: 4, type: 'led', name: "Smart Led IoT40", base: 0.3, varc: 0.05, color: '#f59e0b' }
+            { id: 0, type: 'fridge', name: "Neural Chiller", base: 1.2, varc: 0.15, color: '#6366f1', icon: 'refrigerator' },
+            { id: 1, type: 'washing', name: "Motor IoT84", base: 4.8, varc: 1.5, color: '#a855f7', icon: 'settings' },
+            { id: 2, type: 'tv', name: "Control Terminal", base: 0.6, varc: 0.05, color: '#f43f5e', icon: 'monitor' },
+            { id: 3, type: 'fan', name: "Stand Fan IoT50", base: 0.4, varc: 0.1, color: '#00c896', icon: 'fan' },
+            { id: 4, type: 'led', name: "Smart Led IoT40", base: 0.3, varc: 0.05, color: '#f59e0b', icon: 'lightbulb' }
         ];
 
-        window.toggleDarkMode = function() {
-            const isDark = document.body.classList.toggle('light-mode');
-            const icon = document.getElementById('theme-icon');
-            if (icon) icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-            lucide.createIcons();
-            if(state.three.ambientLight) state.three.ambientLight.intensity = isDark ? 1.2 : 0.8;
-            const chartColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim();
-            if(telChart) { telChart.options.scales.y.ticks.color = chartColor; telChart.update(); }
-            if(distChart) { distChart.options.plugins.legend.labels.color = chartColor; distChart.update(); }
+        let telChart, distChart;
+        let devices = [];
+        let particles = [];
+        let state = { totalLoad: 0, ecoMode: false, history: Array(25).fill(0) };
+
+        /** --- TRANSITION MANAGEMENT --- **/
+        window.onload = () => {
+            const loader = document.getElementById('splash-loader');
+            setTimeout(() => { if(loader) loader.style.width = '100%'; }, 100);
+            
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                const auth = document.getElementById('auth-layer');
+                splash.style.opacity = '0';
+                splash.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    auth.classList.replace('hidden', 'flex');
+                    setTimeout(() => auth.style.opacity = '1', 50);
+                }, 1000);
+            }, 3000);
         };
 
-        window.toggleEcoMode = function() {
-            state.ecoMode = !state.ecoMode;
-            const btn = document.getElementById('btn-eco');
-            if (btn) btn.classList.toggle('eco-active');
-            window.addLog(state.ecoMode ? "ECO-DRIVE: OPTIMIZED" : "ECO-DRIVE: DEACTIVATED", state.ecoMode ? "success" : "alert");
-        };
-
-        window.toggleDevice = function(id, ts = null) {
-            const d = devices[id]; const target = ts !== null ? ts : !d.on;
-            if(target && !d.on) { d.on = true; d.flowReady = false; window.addLog(`NODE ${id} >> CIRCUIT CLOSED`, "info"); } 
-            else if(!target) { d.on = false; d.flowReady = false; window.addLog(`NODE ${id} >> CIRCUIT OPEN`, "alert"); }
-            renderDevices();
-        };
-
-        window.authorize = function() {
+        window.handleAuthorize = () => {
             if(document.getElementById('key-input').value === 'admin123') {
-                document.getElementById('auth-layer').style.display = 'none';
-                document.getElementById('main-ui').classList.replace('hidden', 'flex');
-                setTimeout(() => { document.getElementById('main-ui').style.opacity = '1'; initAll(); }, 50);
+                const auth = document.getElementById('auth-layer');
+                const ui = document.getElementById('main-ui');
+                auth.style.opacity = '0';
+                auth.style.transform = 'translateY(-20px)';
+                
+                setTimeout(() => {
+                    auth.style.display = 'none';
+                    ui.classList.replace('hidden', 'flex');
+                    setTimeout(() => {
+                        ui.style.opacity = '1';
+                        // Staggered dashboard entrance
+                        document.getElementById('nav-bar').style.transform = 'translateY(0)';
+                        document.getElementById('nav-bar').style.opacity = '1';
+                        document.getElementById('side-left').style.transform = 'translateX(0)';
+                        document.getElementById('side-left').style.opacity = '1';
+                        document.getElementById('side-right').style.transform = 'translateX(0)';
+                        document.getElementById('side-right').style.opacity = '1';
+                        document.getElementById('viz-center').style.transform = 'scale(1)';
+                        document.getElementById('viz-center').style.opacity = '1';
+                        initDashboard();
+                    }, 50);
+                }, 800);
             } else window.showToast("Handshake Refused", "error");
         };
 
-        /** --- 3D ENGINE --- **/
-        function createRockerSwitch(id) {
-            const group = new THREE.Group();
-            const housing = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 3.5), new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8}));
-            const pivot = new THREE.Group();
-            const rockerTop = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.6, 3.2), new THREE.MeshStandardMaterial({color: 0x333333, metalness: 0.5}));
-            
-            // RED/GREEN INDICATOR (3D volumetric bar)
-            const indicator = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.5), new THREE.MeshStandardMaterial({color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2}));
-            indicator.position.set(0, 0.31, 0.8);
-            
-            pivot.add(rockerTop, indicator); pivot.position.y = 0.5; group.add(housing, pivot);
-            
-            // INTERACTIVE HIT-AREA (Raycast enabled via transparency)
-            const clickArea = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
-            clickArea.userData = { isSwitch: true, devId: id }; group.add(clickArea);
-            
-            group.userData = { pivot, indicator };
-            return group;
-        }
+        /** --- CORE UI LOGIC --- **/
+        window.toggleDarkMode = () => {
+            const isDark = document.body.classList.toggle('light-mode');
+            document.getElementById('theme-icon')?.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+            const textColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim();
+            if(telChart) { telChart.options.scales.y.ticks.color = textColor; telChart.update(); }
+            if(distChart) { distChart.options.plugins.legend.labels.color = textColor; distChart.update(); }
+        };
 
-        function createInfrastructureLED() {
-            const group = new THREE.Group();
-            const mount = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.6, 16), new THREE.MeshStandardMaterial({color: 0x333333, metalness: 0.8}));
-            const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), new THREE.MeshStandardMaterial({color: 0xffffff, transparent: true, opacity: 0.3, emissive: 0xffaa00, emissiveIntensity: 0}));
-            group.add(mount, bulb); group.userData = { bulb };
-            return group;
-        }
+        window.toggleEcoMode = () => {
+            state.ecoMode = !state.ecoMode;
+            document.getElementById('btn-eco')?.classList.toggle('eco-active');
+            const core = document.getElementById('core-orb');
+            if (core) {
+                core.style.boxShadow = state.ecoMode ? "0 0 50px #00ff00" : "0 0 50px #6366f1";
+                core.style.background = state.ecoMode ? "radial-gradient(circle, #fff, #00ff00)" : "radial-gradient(circle, #fff, #6366f1)";
+            }
+            window.addLog(state.ecoMode ? "ECO-DRIVE: OPTIMIZED" : "ECO-DRIVE: DEACTIVATED", state.ecoMode ? "success" : "alert");
+        };
 
-        function createMasterDevice(def) {
-            const node = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.2 });
-            if(def.type === 'fan') {
-                const base = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.2, 0.4, 32), new THREE.MeshStandardMaterial({color: 0xe2e8f0, metalness: 1}));
-                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 5, 16), new THREE.MeshStandardMaterial({color: 0xe2e8f0})); pole.position.y = 2.5;
-                const motor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1.2), mat); motor.position.y = 5;
-                const headGroup = new THREE.Group(); headGroup.position.y = 5;
-                const cage = new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.05, 8, 48), new THREE.MeshStandardMaterial({color: 0x777777, wireframe: true}));
-                const blades = new THREE.Group();
-                for(let b=0; b<3; b++) {
-                    const blade = new THREE.Mesh(new THREE.CircleGeometry(1.6, 16), new THREE.MeshStandardMaterial({color: 0x222222, side: THREE.DoubleSide}));
-                    blade.rotation.z = (b * Math.PI * 2) / 3; blade.scale.x = 0.3; blades.add(blade);
-                }
-                blades.position.z = 0.2; headGroup.add(motor, cage, blades);
-                node.add(base, pole, headGroup); node.userData = { blades, type: 'fan' };
-            } else if(def.type === 'fridge') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 5.5, 3.5), new THREE.MeshPhysicalMaterial({color: 0x888888, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.7}));
-                const internalFlow = new THREE.Group();
-                for(let k=0; k<25; k++) {
-                    const cryo = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({color: 0xff00ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending}));
-                    cryo.position.set((Math.random()-0.5)*2.5, (Math.random()-0.5)*4.5, (Math.random()-0.5)*2.5);
-                    cryo.userData = { vel: 0.08 + Math.random()*0.1 }; internalFlow.add(cryo);
-                }
-                const ctx = document.createElement('canvas').getContext('2d'); ctx.canvas.width=128; ctx.canvas.height=64;
-                const tex = new THREE.CanvasTexture(ctx.canvas);
-                const display = new THREE.Mesh(new THREE.PlaneGeometry(2, 1), new THREE.MeshBasicMaterial({map: tex, transparent: true}));
-                display.position.set(0, 1.5, 1.76); node.add(body, display, internalFlow);
-                node.userData = { texture: tex, context: ctx, internalFlow, type: 'fridge' };
-            } else if(def.type === 'washing') {
-                const shell = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), mat);
-                const glass = new THREE.Mesh(new THREE.CircleGeometry(1.4, 32), new THREE.MeshPhysicalMaterial({transparent: true, transmission: 0.9, opacity: 0.4})); glass.position.z = 2.01;
-                const motorNode = new THREE.Group();
-                const coils = new THREE.Mesh(new THREE.TorusGeometry(1, 0.2, 8, 32), new THREE.MeshStandardMaterial({color: 0xffd700, metalness: 1, roughness: 0.1}));
-                motorNode.add(coils); motorNode.position.z = 1.2; motorNode.rotation.x = Math.PI/2;
-                node.add(shell, glass, motorNode); node.userData = { motorNode, type: 'washing' };
-            } else if(def.type === 'led') {
-                const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1, 1, 16), mat);
-                const lens = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32, 0, Math.PI*2, 0, Math.PI/2), new THREE.MeshStandardMaterial({color: 0xffffff, transparent: true, opacity: 0.4, emissive: 0xffaa00, emissiveIntensity: 0}));
-                lens.position.y = 0.5; node.add(base, lens); node.userData = { lens, type: 'led' };
+        window.toggleDevice = (id) => {
+            const d = devices[id];
+            d.on = !d.on;
+            if (d.on) {
+                d.negotiating = true; d.flowReady = false;
+                window.addLog(`NODE ${id} >> CIRCUIT NEGOTIATING`, "info");
+                setTimeout(() => {
+                    d.negotiating = false;
+                    setTimeout(() => {
+                        d.flowReady = true;
+                        window.addLog(`NODE ${id} >> LINK ACTIVE`, "success");
+                    }, 500);
+                }, 500);
             } else {
-                const screen = new THREE.Mesh(new THREE.BoxGeometry(6.5, 3.8, 0.2), mat);
-                const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=128;
-                const tex = new THREE.CanvasTexture(canvas);
-                const display = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 3.5), new THREE.MeshBasicMaterial({map: tex, color: 0xffffff}));
-                display.position.z = 0.11; node.add(screen, display);
-                node.userData = { texture: tex, context: canvas.getContext('2d'), type: 'tv' };
+                d.flowReady = false; d.negotiating = false;
+                window.addLog(`NODE ${id} >> CIRCUIT OPEN`, "alert");
             }
-            return node;
+            updateNodeVisuals(id);
+            // Updating sidebar manually to avoid layout jitter from full innerHTML replace
+            const toggleBtn = document.querySelector(`[data-device-toggle="${id}"]`);
+            if (toggleBtn) {
+                const inner = toggleBtn.querySelector('div');
+                if (d.on) {
+                    inner.classList.add('translate-x-5', '!bg-indigo-600', 'shadow-[0_0_10px_rgba(99,102,241,0.8)]');
+                } else {
+                    inner.classList.remove('translate-x-5', '!bg-indigo-600', 'shadow-[0_0_10px_rgba(99,102,241,0.8)]');
+                }
+            }
+        };
+
+        window.resetAll = () => devices.forEach((d, i) => { if(d.on) window.toggleDevice(i); });
+
+        /** --- 2D VISUALIZATION ENGINE --- **/
+        function renderRadialNodes() {
+            const container = document.getElementById('nodes-container'); if (!container) return;
+            container.innerHTML = devices.map((d, i) => {
+                const angle = (i * 2 * Math.PI) / devices.length - Math.PI / 2;
+                const swRad = 200, baseRad = 380; // Stable radii
+                const swPos = { x: 50 + (swRad/10) * Math.cos(angle), y: 50 + (swRad/10) * Math.sin(angle) };
+                const devPos = { x: 50 + (baseRad/10) * Math.cos(angle), y: 50 + (baseRad/10) * Math.sin(angle) };
+                return `
+                    <div class="device-node" id="node-${d.id}" style="left: ${devPos.x}%; top: ${devPos.y}%">
+                        <div class="node-icon-bg flex items-center justify-center">
+                             <div id="ani-${d.id}" class="transition-all duration-500"><i data-lucide="${d.icon}" class="w-8 h-8 text-white"></i></div>
+                             <span class="text-[8px] font-black uppercase opacity-50 tracking-widest text-center mt-1">${d.name}</span>
+                        </div>
+                    </div>
+                    <div class="absolute transition-all cursor-pointer pointer-events-auto" onclick="window.toggleDevice(${d.id})" style="left: ${swPos.x}%; top: ${swPos.y}%; transform: translate(-50%, -50%)">
+                        <div id="sw-vis-${d.id}" class="w-8 h-8 bg-slate-800 rounded-lg border-2 border-slate-700 flex items-center justify-center shadow-lg hover:border-indigo-400 transition-colors">
+                            <div class="w-1.5 h-4 bg-red-500 rounded-full transition-all" id="sw-indicator-${d.id}"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+            setupGridPaths();
         }
 
-        function init3D() {
-            const c = document.getElementById('three-container'); if(!c) return;
-            state.three.scene = new THREE.Scene();
-            state.three.camera = new THREE.PerspectiveCamera(42, c.clientWidth / c.clientHeight, 0.1, 4000);
-            state.three.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            state.three.renderer.setSize(c.clientWidth, c.clientHeight);
-            c.appendChild(state.three.renderer.domElement);
-            state.three.ambientLight = new THREE.AmbientLight(0xffffff, 0.8); state.three.scene.add(state.three.ambientLight);
-            const p1 = new THREE.PointLight(0xffffff, 1.5, 1200); p1.position.set(50, 200, 100); state.three.scene.add(p1);
-            
+        function setupGridPaths() {
+            const svg = document.getElementById('grid-svg'); if (!svg) return;
+            svg.innerHTML = ''; particles = [];
             devices.forEach((d, i) => {
-                const angle = (i / deviceDefinitions.length) * Math.PI * 2;
-                const radius = 100;
-                const node = createMasterDevice(d);
-                node.position.set(Math.cos(angle)*radius, 0, Math.sin(angle)*radius);
-                node.lookAt(0, 30, 400); node.scale.setScalar(4.5);
-                state.three.scene.add(node); state.three.nodes.push(node);
-
-                const sw = createRockerSwitch(d.id);
-                sw.position.set(Math.cos(angle)*(radius*0.45), 0, Math.sin(angle)*(radius*0.45));
-                sw.lookAt(0, 0, 0); sw.scale.setScalar(4.5);
-                state.three.scene.add(sw); state.three.switches.push(sw);
-
-                const dimLed = createInfrastructureLED();
-                dimLed.position.set(Math.cos(angle)*(radius*0.72), 0, Math.sin(angle)*(radius*0.72));
-                dimLed.lookAt(0, 50, 0); dimLed.scale.setScalar(3.5);
-                state.three.scene.add(dimLed); state.three.bufferLeds.push(dimLed);
-
-                const pA = new THREE.LineCurve3(new THREE.Vector3(0,0,0), sw.position.clone());
-                const pB = new THREE.LineCurve3(sw.position.clone(), dimLed.position.clone());
-                const pC = new THREE.LineCurve3(dimLed.position.clone(), node.position.clone());
-                state.three.paths.push({ A: pA, B: pB, C: pC });
-
-                const wireMat = new THREE.LineBasicMaterial({color: 0x1a1a1a});
-                state.three.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pA.getPoints(2)), wireMat));
-                state.three.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pB.getPoints(2)), wireMat));
-                state.three.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pC.getPoints(2)), wireMat));
-
-                for(let p=0; p<12; p++) {
-                    const pkt = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 3), new THREE.MeshBasicMaterial({color: 0x22d3ee, transparent: true, blending: THREE.AdditiveBlending}));
-                    state.three.scene.add(pkt); state.three.particles.push({ mesh: pkt, devId: d.id, seg: 'A', t: Math.random() });
-                }
-                for(let p=0; p<12; p++) {
-                    const pkt = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 3), new THREE.MeshBasicMaterial({color: 0x22d3ee, transparent: true, blending: THREE.AdditiveBlending}));
-                    state.three.scene.add(pkt); state.three.particles.push({ mesh: pkt, devId: d.id, seg: 'C', t: Math.random() });
+                const angle = (i * 2 * Math.PI) / devices.length - Math.PI / 2;
+                const cX = 500, cY = 500, swR = 200, devR = 380;
+                const swPos = { x: cX + swR * Math.cos(angle), y: cY + swR * Math.sin(angle) };
+                const devPos = { x: cX + devR * Math.cos(angle), y: cY + devR * Math.sin(angle) };
+                
+                // Seg A: Core -> Switch
+                createPath(svg, cX, cY, swPos.x, swPos.y, `pathA-${d.id}`);
+                // Seg B: Switch -> Device (No LED middleman)
+                createPath(svg, swPos.x, swPos.y, devPos.x, devPos.y, `pathB-${d.id}`);
+                
+                for(let p=0; p<4; p++) {
+                    particles.push({ id: d.id, seg: 'A', offset: Math.random(), el: createParticle(svg) });
+                    particles.push({ id: d.id, seg: 'B', offset: Math.random(), el: createParticle(svg) });
                 }
             });
+        }
+
+        function createPath(svg, x1, y1, x2, y2, id) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
+            path.setAttribute("class", "power-line");
+            path.setAttribute("id", id);
+            svg.appendChild(path);
+        }
+
+        function createParticle(svg) {
+            const p = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            p.setAttribute("r", "4"); p.setAttribute("class", "particle");
+            p.style.display = 'none'; svg.appendChild(p); return p;
+        }
+
+        function updateNodeVisuals(id) {
+            const d = devices[id];
+            const indicator = document.getElementById(`sw-indicator-${id}`);
+            const node = document.getElementById(`node-${id}`)?.querySelector('.node-icon-bg');
+            if (indicator) {
+                indicator.style.backgroundColor = d.on ? "#00ff00" : "#ff0000";
+                indicator.style.boxShadow = d.on ? "0 0 12px #00ff00" : "none";
+            }
+            if (d.on) node?.classList.add('active-glow'); else node?.classList.remove('active-glow');
+        }
+
+        function animate() {
+            particles.forEach(p => {
+                const d = devices[p.id];
+                const active = p.seg === 'A' || (d.on && d.flowReady);
+                const path = document.getElementById(`path${p.seg}-${p.id}`);
+                
+                if (active && path) {
+                    p.el.style.display = 'block';
+                    let speed = 0.007 + (d.currentLoad || 0) * 0.0012;
+                    p.offset += speed; if (p.offset > 1) p.offset = 0;
+                    try {
+                        const length = path.getTotalLength(), point = path.getPointAtLength(p.offset * length);
+                        p.el.setAttribute("cx", point.x); p.el.setAttribute("cy", point.y);
+                        let color = state.ecoMode ? "#00ff00" : "#22d3ee";
+                        p.el.setAttribute("fill", color);
+                        path.classList.add('active');
+                        if(state.ecoMode) path.classList.add('eco'); else path.classList.remove('eco');
+                    } catch(e) {}
+                } else {
+                    p.el.style.display = 'none'; 
+                    if(path) path.classList.remove('active', 'eco');
+                }
+            });
+
+            devices.forEach(d => {
+                const ani = document.getElementById(`ani-${d.id}`);
+                if (d.on && d.flowReady && ani) {
+                    if (d.type === 'fan') ani.classList.add('fan-rotating');
+                    if (d.type === 'washing') ani.classList.add('rotating');
+                    if (d.type === 'led') ani.style.filter = `drop-shadow(0 0 15px ${state.ecoMode ? "#00ff00" : "#f59e0b"})`;
+                } else if (ani) {
+                    ani.classList.remove('fan-rotating', 'rotating'); ani.style.filter = "none";
+                }
+            });
+            requestAnimationFrame(animate);
+        }
+
+        /** --- SYSTEM LOOP --- **/
+        function renderDeviceList() {
+            const container = document.getElementById('device-list'); if (!container) return;
             
-            const core = new THREE.Group();
-            core.add(new THREE.Mesh(new THREE.SphereGeometry(3.5, 32, 32), new THREE.MeshStandardMaterial({color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 10})));
-            state.three.scene.add(core); state.three.core = core;
-            
-            c.addEventListener('click', onCanvasClick);
-            updateCamera(); animate3D();
-        }
-
-        function onCanvasClick(e) {
-            const rect = document.getElementById('three-container').getBoundingClientRect();
-            state.three.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-            state.three.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-            state.three.raycaster.setFromCamera(state.three.mouse, state.three.camera);
-            const hits = state.three.raycaster.intersectObjects(state.three.scene.children, true);
-            for(let h of hits) { if(h.object.userData.isSwitch) { window.toggleDevice(h.object.userData.devId); break; } }
-        }
-
-        function updateCamera() {
-            const w = window.innerWidth;
-            state.three.camera.position.set(0, w < 768 ? 240 : 200, w < 768 ? 320 : 280);
-            // RE-CALIBRATION: High focal point to avoid HUD obstruction
-            state.three.camera.lookAt(0, 35, 0); 
-        }
-
-        function animate3D() {
-            requestAnimationFrame(animate3D);
-            const time = Date.now() * 0.001;
-            if(state.three.core) {
-                state.three.core.scale.setScalar(1 + Math.sin(time*5)*0.1);
-                state.three.core.children[0].material.emissive.setHex(state.ecoMode ? 0x00ff00 : 0xffffff);
+            // To prevent switchboard jittering, we check if innerHTML needs full refresh 
+            // or just value updates. For simplicity and stability, we use a single render 
+            // and then update specific nodes in intervals.
+            if (container.children.length === 0) {
+                container.innerHTML = devices.map(d => `
+                    <div class="glass p-4 flex items-center justify-between border border-white/10 hover:border-indigo-500/50 transition-all gap-4">
+                        <div class="flex items-center gap-4 min-w-0 flex-1">
+                            <div class="w-2.5 h-10 rounded-full shrink-0" style="background: ${d.color}; box-shadow: 0 0 10px ${d.color}"></div>
+                            <div class="min-w-0">
+                                <p class="text-[12px] font-black uppercase truncate">${d.name}</p>
+                                <p id="status-text-${d.id}" class="text-[8px] text-dim font-black uppercase">${d.on ? 'SYNCING' : 'OFFLINE'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <span id="load-val-${d.id}" class="text-[10px] font-mono font-black w-14 text-right text-indigo-500">--</span>
+                            <button onclick="window.toggleDevice(${d.id})" data-device-toggle="${d.id}" class="w-10 h-5 bg-black/10 dark:bg-white/10 rounded-full relative overflow-hidden transition-all">
+                                <div class="absolute top-1 left-1 w-3 h-3 bg-slate-400 rounded-full transition-all duration-300 transform"></div>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
             }
 
-            devices.forEach((dev, i) => {
-                const n = state.three.nodes[i]; const u = n?.userData;
-                const sw = state.three.switches[i]; const su = sw?.userData;
-                const bledObj = state.three.bufferLeds[i];
-                if (!su || !bledObj || !u) return;
-
-                const bled = bledObj.userData.bulb;
-                const targetRot = dev.on ? -Math.PI/6 : Math.PI/6;
-                su.pivot.rotation.x += (targetRot - su.pivot.rotation.x) * 0.15;
-                
-                // RED/GREEN SWITCH SYNC
-                su.indicator.material.color.setHex(dev.on ? 0x00ff00 : 0xff0000);
-                su.indicator.material.emissive.setHex(dev.on ? 0x00ff00 : 0xff0000);
-
-                if(dev.on) {
-                    bledObj.rotation.y += 0.05;
-                    if(bled.material.emissiveIntensity < 8) {
-                        bled.material.emissiveIntensity += 0.1;
-                        bled.material.emissive.lerp(new THREE.Color(0x10b981), 0.15);
-                    }
-                    if(bled.material.emissiveIntensity >= 5.0 && !dev.flowReady) dev.flowReady = true;
-                } else {
-                    bled.material.emissiveIntensity = 0; bled.material.emissive.setHex(0xffaa00); dev.flowReady = false;
-                }
-
-                if(dev.flowReady) {
-                    if(u.type === 'fan' && u.blades) u.blades.rotation.z += 0.7;
-                    if(u.type === 'washing') u.motorNode.rotation.y += 0.6;
-                    if(u.type === 'led' && u.lens) {
-                        u.lens.material.emissiveIntensity = 5 + Math.sin(time*10)*3;
-                        u.lens.material.opacity = 0.9;
-                    }
-                    if(u.type === 'fridge' && u.context) {
-                        u.internalFlow.children.forEach(c => {
-                            c.position.y += c.userData.vel;
-                            if(c.position.y > 2.5) c.position.y = -2.5;
-                            c.material.color.setHex(state.ecoMode ? 0x00ff00 : 0xff00ff);
-                            c.material.opacity = 0.8 + Math.sin(time*8)*0.2;
-                        });
-                        u.context.fillStyle = '#000'; u.context.fillRect(0,0,128,64);
-                        u.context.fillStyle = '#0ff'; u.context.font = 'bold 32px monospace';
-                        u.context.fillText(`${(4.1 + Math.sin(time)*0.2).toFixed(1)}°C`, 15, 45);
-                        u.texture.needsUpdate = true;
-                    }
-                    if(u.type === 'tv' && u.context) {
-                        u.context.fillStyle = '#020617'; u.context.fillRect(0,0,256,128);
-                        u.context.strokeStyle = '#0ff'; u.context.beginPath();
-                        for(let k=0; k<8; k++) { u.context.moveTo(Math.random()*256, 0); u.context.lineTo(Math.random()*256, 128); }
-                        u.context.stroke(); u.texture.needsUpdate = true;
-                    }
-                } else {
-                    if(u.type === 'led' && u.lens) { u.lens.material.emissiveIntensity = 0; u.lens.material.opacity = 0.4; }
-                }
+            // Efficiently update values without re-rendering the whole DOM list
+            devices.forEach(d => {
+                const loadEl = document.getElementById(`load-val-${d.id}`);
+                const statusEl = document.getElementById(`status-text-${d.id}`);
+                if (loadEl) loadEl.innerText = (d.on && d.flowReady) ? d.currentLoad.toFixed(1)+'kW' : '--';
+                if (statusEl) statusEl.innerText = d.on ? (d.flowReady ? 'LINK: OK' : 'SYNCING') : 'OFFLINE';
             });
-
-            state.three.particles.forEach(p => {
-                const dev = devices[p.devId];
-                const active = p.seg === 'A' || (dev && dev.flowReady);
-                if(active) {
-                    p.mesh.visible = true; p.t += 0.008; if(p.t > 1) p.t = 0;
-                    const path = state.three.paths[p.devId][p.seg];
-                    if(path) {
-                        p.mesh.position.copy(path.getPoint(p.t));
-                        p.mesh.lookAt(path.getPoint(Math.min(1, p.t+0.1)));
-                        const s = 0.8 + Math.sin(p.t * Math.PI) * 0.4;
-                        p.mesh.scale.set(s, s, s * 2.5);
-                        p.mesh.material.color.setHex(state.ecoMode ? 0x00ff00 : 0x22d3ee);
-                    }
-                } else p.mesh.visible = false;
-            });
-            state.three.renderer.render(state.three.scene, state.three.camera);
-        }
-
-        function resetAll() { devices.forEach((d,i) => window.toggleDevice(i, false)); }
-        window.resetAll = resetAll;
-
-        function renderDevices() {
-            const container = document.getElementById('device-list');
-            if(!container) return;
-            container.innerHTML = devices.map(d => `
-                <div class="glass p-5 flex items-center justify-between border border-white/10 hover:border-indigo-500/50 transition-all gap-4">
-                    <div class="flex items-center gap-4 min-w-0 flex-1">
-                        <div class="w-2.5 h-12 rounded-full shrink-0" style="background: ${d.color}; box-shadow: 0 0 15px ${d.color}"></div>
-                        <div class="min-w-0"><p class="text-[14px] font-black uppercase truncate">${d.name}</p><p class="text-[9px] text-dim font-black uppercase">${d.on ? (d.flowReady ? 'LINK: OK' : 'READY') : 'OFFLINE'}</p></div>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <i data-lucide="clock" class="w-5 h-5 text-dim cursor-pointer hover:text-indigo-500"></i>
-                        <span class="text-[11px] font-mono font-black w-14 text-right text-indigo-500">${d.on && d.flowReady ? d.currentLoad.toFixed(1)+'kW' : '--'}</span>
-                        <button onclick="window.toggleDevice(${d.id})" class="w-12 h-6 bg-black/10 dark:bg-white/10 rounded-full relative overflow-hidden transition-all"><div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300 transform ${d.on ? 'translate-x-6 !bg-indigo-600 shadow-[0_0_10px_rgba(99,102,241,0.8)]' : 'bg-slate-400'}"></div></button>
-                    </div>
-                </div>
-            `).join(''); lucide.createIcons();
         }
 
         function initCharts() {
-            const ctx1 = document.getElementById('telemetryChart').getContext('2d');
-            telChart = new Chart(ctx1, { type: 'line', data: { labels: Array(25).fill(''), datasets: [{ data: state.history, borderColor: '#6366f1', borderWidth: 4, fill: true, tension: 0.5, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 9, weight: 'bold' } } } } } });
-            const ctx2 = document.getElementById('distributionChart').getContext('2d');
-            distChart = new Chart(ctx2, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '82%', plugins: { legend: { position: 'bottom', labels: { font: { size: 10, weight: 'bold' }, boxWidth: 10 } } } } });
+            const ctx1 = document.getElementById('telemetryChart').getContext('2d'), ctx2 = document.getElementById('distributionChart').getContext('2d');
+            const textColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim();
+            telChart = new Chart(ctx1, { type: 'line', data: { labels: Array(25).fill(''), datasets: [{ data: state.history, borderColor: '#6366f1', borderWidth: 4, fill: true, tension: 0.5, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { color: textColor, font: { size: 9, weight: 'bold' } } } } } });
+            distChart = new Chart(ctx2, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '82%', plugins: { legend: { position: 'bottom', labels: { color: textColor, font: { size: 10, weight: 'bold' }, boxWidth: 10 } } } } });
         }
 
-        function startLoop() {
+        function startSimLoop() {
             setInterval(() => {
-                const now = new Date(); window.safeSetText('current-clock', now.toLocaleTimeString([], { hour12: false }));
+                const now = new Date(); window.safeSetText('current-clock', now.toLocaleTimeString());
                 let total = 0;
                 devices.forEach(d => {
                     if(d.on && d.flowReady) {
@@ -546,18 +570,35 @@
                 });
                 state.totalLoad = total; state.history.push(total); state.history.shift();
                 window.safeSetText('hud-load', total.toFixed(2) + "kW"); window.safeSetText('hud-cost', "₹" + (total * 8.5 / 24).toFixed(2));
-                if(distChart) { const active = devices.filter(d => d.on && d.flowReady); distChart.data.labels = active.map(x=>x.name); distChart.data.datasets[0].data = active.map(x=>x.currentLoad); distChart.data.datasets[0].backgroundColor = active.map(x=>x.color); distChart.update('none'); }
+                
+                if(distChart) { 
+                    const active = devices.filter(d => d.on && d.flowReady); 
+                    distChart.data.labels = active.map(x=>x.name); 
+                    distChart.data.datasets[0].data = active.map(x=>x.currentLoad); 
+                    distChart.data.datasets[0].backgroundColor = active.map(x=>x.color); 
+                    distChart.update('none'); 
+                }
                 if(telChart) { telChart.data.datasets[0].data = state.history; telChart.update('none'); }
-                renderDevices();
+                renderDeviceList();
             }, 1000);
         }
 
-        function initAll() { 
-            devices = deviceDefinitions.map(def => ({ ...def, on: false, health: 100, runtime: 0, currentLoad: 0, engine: new ConsumptionProfile(def.base, def.varc) }));
-            lucide.createIcons(); init3D(); initCharts(); startLoop();
-            window.addLog("Nexus Topology Synchronized.", "success");
+        function initDashboard() {
+            devices = deviceDefinitions.map(def => ({ ...def, on: false, flowReady: false, negotiating: false, engine: new ConsumptionProfile(def.base, def.varc) }));
+            renderRadialNodes(); 
+            initCharts(); 
+            startSimLoop(); 
+            animate();
+            window.addLog("Neural Infrastructure Mapping Complete.", "success");
         }
-        window.onresize = () => { const c = document.getElementById('three-container'); if(state.three.camera && c) { state.three.camera.aspect = c.clientWidth/c.clientHeight; state.three.camera.updateProjectionMatrix(); state.three.renderer.setSize(c.clientWidth, c.clientHeight); updateCamera(); } };
+
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.text("Nexus Prime Grid Audit", 20, 20); doc.text(`Timestamp: ${new Date().toLocaleString()}`, 20, 30); doc.text(`Total Load: ${state.totalLoad.toFixed(2)} kW`, 20, 40);
+            doc.save("grid-audit.pdf"); window.showToast("Report Exported", "success");
+        }
+
+        window.onresize = () => { if(devices.length) renderRadialNodes(); };
     </script>
 </body>
 </html>
