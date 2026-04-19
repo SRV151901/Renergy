@@ -1,15 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ Energy Monitoring system | Universal Edition</title>
+    <title>⚡ Nexus Prime | IoT Infrastructure v34.1</title>
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
@@ -17,756 +16,589 @@
         
         :root {
             --primary: #6366f1;
-            --bg-canvas: #f8fafc;
-            --component-bg: rgba(15, 23, 42, 0.98);
-            --accent: #8b5cf6;
-            --danger: #f43f5e;
-            --eco: #10b981;
-            --glass-border: rgba(255, 255, 255, 0.12);
-            --text-light: #f8fafc;
+            --accent: #f43f5e;
+            --neon: #22d3ee;
+            --bg-canvas: #020617;
+            --component-bg: rgba(15, 23, 42, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
             --text-dim: #94a3b8;
-            --neon: #00ffff;
+            --danger: #ff4d6d;
+            --eco: #00ff00;
+        }
+
+        body.light-mode {
+            --bg-canvas: #f1f5f9;
+            --component-bg: rgba(255, 255, 255, 0.8);
+            --glass-border: rgba(99, 102, 241, 0.15);
+            --text-main: #1e293b;
+            --text-dim: #64748b;
         }
 
         body { 
             font-family: 'Space Grotesk', sans-serif; 
-            background-color: var(--bg-canvas); 
-            color: var(--text-light); 
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
+            background: var(--bg-canvas); 
+            color: var(--text-main); 
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
             overflow: hidden;
+            transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* --- Aura Motion Background --- */
-        .bg-aura {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-            background: var(--bg-canvas);
-            overflow: hidden;
-        }
+        .bg-aura { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
         .blob {
-            position: absolute; width: min(80vw, 800px); height: min(80vw, 800px); border-radius: 50%;
-            filter: blur(100px); animation: move-blob 30s infinite alternate ease-in-out;
-            opacity: 0.5;
+            position: absolute; width: min(80vw, 850px); height: min(80vw, 850px);
+            border-radius: 50%; filter: blur(130px); opacity: 0.25;
+            animation: move-blob 25s infinite alternate ease-in-out;
         }
-        .blob-1 { top: -10%; left: -10%; background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%); }
-        .blob-2 { bottom: -10%; right: -10%; background: radial-gradient(circle, rgba(0, 255, 255, 0.15) 0%, transparent 70%); animation-delay: -5s; }
-        .blob-3 { top: 40%; left: 30%; background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%); animation-delay: -10s; }
+        .blob-1 { top: -10%; left: -10%; background: radial-gradient(circle, var(--primary), transparent 70%); }
+        .blob-2 { bottom: -10%; right: -10%; background: radial-gradient(circle, var(--neon), transparent 70%); animation-delay: -5s; }
 
         @keyframes move-blob {
             0% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(100px, -50px) scale(1.1); }
-            100% { transform: translate(-50px, 100px) scale(0.9); }
+            100% { transform: translate(-80px, 120px) scale(0.9); }
         }
 
-        .glass { 
-            background: var(--component-bg); 
-            backdrop-filter: blur(24px); 
+        /* --- Splash Screen --- */
+        #splash-screen {
+            position: fixed; inset: 0; z-index: 20000;
+            background: #020617;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1s ease-in-out, transform 1.2s cubic-bezier(0.7, 0, 0.3, 1);
+        }
+        .splash-core {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: radial-gradient(circle, #fff, var(--primary));
+            box-shadow: 0 0 80px var(--primary);
+            animation: splash-pulse 2s infinite ease-in-out;
+            margin-bottom: 2rem;
+        }
+        @keyframes splash-pulse { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.15); opacity: 1; } }
+        
+        /* --- Visual Transitions --- */
+        .fade-slide-up { animation: fadeSlideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(30px); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        .glass {
+            background: var(--component-bg);
+            backdrop-filter: blur(40px) saturate(180%);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.4);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
-        #three-container { width: 100%; height: 100%; cursor: move; }
+        /* 2D Grid Visualizer */
+        #radial-stage { 
+            position: relative; 
+            width: 100%; height: 100%; 
+            display: flex; align-items: center; justify-content: center;
+            overflow: visible;
+        }
+        .power-line { fill: none; stroke: #1e293b; stroke-width: 4; stroke-linecap: round; transition: stroke 0.5s ease; opacity: 0.3; }
+        .power-line.active { stroke: var(--neon); stroke-width: 5; opacity: 1; }
+        .power-line.eco { stroke: var(--eco) !important; }
+        .particle { fill: var(--neon); filter: drop-shadow(0 0 8px var(--neon)); }
 
-        .btn-glow-primary {
+        .device-node { position: absolute; transform: translate(-50%, -50%); width: 130px; z-index: 50; }
+        .core-orb {
+            width: 90px; height: 90px;
+            background: radial-gradient(circle, #fff, var(--primary));
+            border-radius: 50%; box-shadow: 0 0 50px var(--primary);
+            animation: core-pulse 3s infinite ease-in-out;
+        }
+        @keyframes core-pulse { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.1); filter: brightness(1.3); } }
+
+        .node-icon-bg {
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid var(--glass-border);
+            border-radius: 20px; padding: 12px;
+            display: flex; align-items: center; justify-content: center; flex-direction: column; width: 100%;
+        }
+        .active-glow { box-shadow: 0 0 30px var(--primary); border-color: var(--primary); }
+
+        @keyframes rotate-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .rotating { animation: rotate-slow 2s linear infinite; }
+        .fan-rotating { animation: rotate-slow 0.5s linear infinite; }
+
+        /* Master Grid Layout */
+        .dashboard-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; }
+        .master-grid { display: grid; grid-template-columns: 24% 52% 24%; gap: 1rem; flex: 1; min-height: 0; padding: 0 1rem 1rem 1rem; }
+
+        .btn-glow {
             background: linear-gradient(135deg, var(--primary), var(--accent));
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-            transition: all 0.3s ease; color: white;
+            color: white; border-radius: 14px; padding: 10px 24px; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.2); border: none;
+            font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.3s ease;
         }
-        .btn-glow-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); }
+        .btn-glow:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.1); }
 
-        .eco-active {
-            background: linear-gradient(135deg, #059669, var(--eco)) !important;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-        }
+        .eco-active { background: linear-gradient(135deg, #059669, #00ff00) !important; color: white !important; box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
 
-        .modal-overlay { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px); transition: all 0.4s ease; z-index: 6000; }
-
-        /* --- Interactive Analog Clock --- */
-        .analog-clock-wrapper {
-            position: relative; width: min(240px, 70vw); height: min(240px, 70vw); margin: 0 auto; cursor: crosshair; user-select: none;
-        }
-        .analog-clock-face {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.9); border-radius: 50%;
-            border: 4px solid rgba(255,255,255,0.1); box-shadow: inset 0 0 50px rgba(0,0,0,1);
-        }
-        .clock-number {
-            position: absolute; width: 30px; height: 30px; text-align: center; line-height: 30px;
-            font-size: 14px; font-weight: 700; color: #fff; transform: translate(-50%, -50%); pointer-events: none;
-        }
-        .hand {
-            position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; border-radius: 10px;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none;
-        }
-        .hour-hand { width: 6px; height: 50px; background: white; z-index: 3; }
-        .min-hand { width: 4px; height: 75px; background: var(--primary); z-index: 2; }
-        .sec-hand { width: 2px; height: 95px; background: var(--neon); z-index: 1; }
-        .clock-center { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: white; border-radius: 50%; transform: translate(-50%, -50%); z-index: 10; }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        
-        .scanner::after {
-            content: ""; position: absolute; inset: 0; pointer-events: none;
-            background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.03) 50%, transparent);
-            animation: scanline 10s linear infinite;
-        }
-        @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
-
-        .min-h-0 { min-height: 0; }
-        
-        /* Mobile Layout adjustments */
-        @media (max-width: 1024px) {
-            #main-ui { overflow-y: auto !important; height: auto !important; max-height: none !important; }
-            body { overflow-y: auto; }
-            .viz-container { height: 500px !important; flex: none !important; }
-        }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
     </style>
 </head>
 <body id="app-body">
 
+    <!-- 1. SPLASH SCREEN -->
+    <div id="splash-screen">
+        <div class="splash-core"></div>
+        <h1 class="text-3xl font-black tracking-[0.4em] uppercase text-white animate-pulse">Energy Monitoring System</h1>
+        <p class="text-indigo-400 font-mono text-xs mt-4 tracking-widest uppercase opacity-60">Initializing Neural Grid...</p>
+        <div class="w-48 h-1 bg-white/10 rounded-full mt-12 overflow-hidden">
+            <div id="splash-loader" class="h-full bg-indigo-500 transition-all duration-1000" style="width: 0%"></div>
+        </div>
+    </div>
+
     <div class="bg-aura">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
     </div>
 
-    <div id="toast-container" class="fixed top-4 right-4 z-[9000] flex flex-col gap-3"></div>
+    <div id="toast-container" class="fixed top-6 right-6 z-[9999] flex flex-col gap-3"></div>
 
-    <!-- Modal -->
-    <div id="info-modal" class="fixed inset-0 hidden items-center justify-center p-4 modal-overlay" style="opacity: 0">
-        <div class="glass p-8 md:p-10 rounded-[3rem] max-w-xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 text-center sm:text-left">
-                <h2 id="modal-title" class="text-2xl font-bold text-white tracking-tighter truncate uppercase">Node Management</h2>
-                <div class="flex bg-black/40 p-1.5 rounded-2xl shrink-0">
-                    <button id="tab-info" onclick="window.setModalTab('info')" class="text-[10px] font-bold px-4 py-2 rounded-lg text-white uppercase tracking-widest transition-all">Intel</button>
-                    <button id="tab-schedule" onclick="window.setModalTab('schedule')" class="text-[10px] font-bold px-4 py-2 rounded-lg text-slate-400 uppercase tracking-widest transition-all">Clock</button>
+    <!-- 2. LOGIN LAYER -->
+    <div id="auth-layer" class="fixed inset-0 z-[10000] hidden items-center justify-center p-4 transition-all duration-1000 bg-black/40 backdrop-blur-xl opacity-0">
+        <div class="glass p-16 rounded-[4rem] w-full max-w-lg text-center relative overflow-hidden shadow-2xl border-t-8 border-indigo-500 fade-slide-up">
+            <div class="absolute -top-40 -left-40 w-80 h-80 bg-indigo-500/10 blur-[120px]"></div>
+            <div class="flex justify-center mb-10">
+                <div class="relative w-24 h-24">
+                    <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_0_20px_rgba(108,99,255,0.6)]">
+                        <defs><linearGradient id="primeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:var(--primary);stop-opacity:1" /><stop offset="100%" style="stop-color:var(--neon);stop-opacity:1" /></linearGradient></defs>
+                        <path d="M55 10 L30 55 H50 L45 90 L70 45 H50 L55 10 Z" fill="url(#primeGrad)" />
+                    </svg>
                 </div>
             </div>
-            
-            <div id="modal-content-info" class="mb-6">
-                <p id="modal-desc" class="text-slate-400 leading-relaxed font-light text-sm mb-6">...</p>
-                <div class="p-5 bg-black/30 rounded-3xl border border-white/5 space-y-4 font-mono text-[12px]">
-                    <div class="flex justify-between">
-                        <span class="text-slate-500 uppercase">Integrity</span>
-                        <span id="diag-state" class="font-bold text-emerald-400">NOMINAL</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-500 uppercase">Total Runtime</span>
-                        <span id="diag-runtime" class="font-bold text-indigo-400">0.0h</span>
-                    </div>
+            <h1 class="text-4xl font-black mb-2 tracking-tighter uppercase">Nexus Prime</h1>
+            <p class="text-dim mb-10 font-bold text-xs uppercase tracking-[0.4em]">Infrastructure Access Protocol</p>
+            <div class="space-y-6">
+                <div class="relative group">
+                    <input id="key-input" type="password" placeholder="PROTOCOL KEY" value="admin123" class="w-full bg-slate-900/50 border-2 border-slate-700 rounded-2xl px-8 py-5 outline-none focus:border-indigo-500 transition-all text-center font-mono tracking-[0.5em] text-xl font-black text-inherit">
                 </div>
-            </div>
-
-            <div id="modal-content-schedule" class="mb-6 hidden">
-                <div class="flex flex-col items-center gap-6">
-                    <div class="flex gap-2 w-full">
-                        <button id="clock-mode-start" onclick="window.setClockEditMode('start')" class="flex-1 py-3 rounded-2xl text-[9px] font-bold transition-all border border-white/5 bg-indigo-600 text-white uppercase tracking-widest text-center">Establish</button>
-                        <button id="clock-mode-stop" onclick="window.setClockEditMode('stop')" class="flex-1 py-3 rounded-2xl text-[9px] font-bold transition-all border border-white/5 bg-white/5 text-slate-400 uppercase tracking-widest text-center">Sever</button>
-                    </div>
-
-                    <div class="analog-clock-wrapper" id="analog-picker">
-                        <div class="analog-clock-face" id="clock-face">
-                            <div class="clock-center"></div>
-                            <div id="hand-h" class="hand hour-hand"></div>
-                            <div id="hand-m" class="hand min-hand"></div>
-                            <div id="hand-s" class="hand sec-hand"></div>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-3">
-                        <button id="unit-h" onclick="window.setActiveUnit('h')" class="unit-toggle-btn active">Hrs</button>
-                        <button id="unit-m" onclick="window.setActiveUnit('m')" class="unit-toggle-btn">Min</button>
-                        <button id="unit-s" onclick="window.setActiveUnit('s')" class="unit-toggle-btn">Sec</button>
-                    </div>
-
-                    <div class="flex items-center justify-center gap-4">
-                        <div class="clock-segment"><div id="picker-h" class="clock-val">00</div></div>
-                        <span class="text-2xl font-bold text-white/20">:</span>
-                        <div class="clock-segment"><div id="picker-m" class="clock-val">00</div></div>
-                        <span class="text-2xl font-bold text-white/20">:</span>
-                        <div class="clock-segment"><div id="picker-s" class="clock-val">00</div></div>
-                    </div>
-
-                    <div class="flex w-full gap-3 pt-2">
-                        <button onclick="window.applySchedule()" class="flex-1 btn-glow-primary py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest">Commit Routine</button>
-                        <button onclick="window.clearSchedule()" class="bg-white/10 px-8 py-4 rounded-2xl font-bold text-[11px] uppercase text-slate-300">Reset</button>
-                    </div>
-                </div>
-            </div>
-
-            <button onclick="window.closeInfoModal()" class="w-full bg-white/5 py-4 rounded-xl font-bold text-slate-400 uppercase text-[10px] tracking-[0.3em] hover:bg-white/10 mt-4 text-center">Dismiss Interface</button>
-        </div>
-    </div>
-
-    <!-- Security Overlay -->
-    <div id="auth-layer" class="fixed inset-0 z-[8000] flex items-center justify-center p-4 transition-all duration-1000">
-        <div class="glass p-10 md:p-14 rounded-[4rem] w-full max-w-md text-center border-t-4 border-indigo-500 relative overflow-hidden shadow-2xl">
-            <div class="absolute -top-20 -left-20 w-40 h-40 bg-indigo-500/10 blur-[80px]"></div>
-            <div class="mb-10 inline-flex p-6 bg-indigo-500/10 rounded-[2rem]"><i data-lucide="shield-check" class="w-12 h-12 text-indigo-400"></i></div>
-            <h1 class="text-2xl md:text-3xl font-bold mb-2 text-white tracking-tighter uppercase">Nexus OS</h1>
-            <p class="text-slate-500 mb-10 font-light text-xs uppercase tracking-widest text-center">Secure Verification Required</p>
-            <div class="space-y-4">
-                <input id="key-input" type="password" placeholder="ACCESS KEY" value="admin123" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-indigo-500 transition-all text-center text-white font-mono tracking-[0.5em]">
-                <button onclick="window.authorize()" class="w-full btn-glow-primary py-4 rounded-2xl font-bold text-white uppercase text-xs tracking-widest text-center">Login</button>
+                <button onclick="handleAuthorize()" class="w-full btn-glow py-6 rounded-2xl font-black text-lg uppercase tracking-widest">Verify Access</button>
             </div>
         </div>
     </div>
 
-    <!-- Main Workspace -->
-    <main id="main-ui" class="hidden opacity-0 transition-all duration-1000 flex flex-col gap-4 md:gap-6 h-full max-h-full p-4 md:p-6 lg:p-8">
-        
-        <nav class="flex flex-col md:flex-row justify-between items-center glass px-6 py-4 rounded-[2.5rem] gap-4 shrink-0 border border-white/5">
-            <div class="flex items-center gap-4 md:gap-6 w-full md:w-auto">
-                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg">
-                    <i data-lucide="activity" class="text-white w-6 h-6"></i>
-                </div>
-                <div>
-                    <h2 class="text-sm md:text-lg font-bold text-white tracking-tighter uppercase text-nowrap">Energy Monitoring system</h2>
-                    <p class="text-[9px] text-indigo-400 font-mono tracking-[0.3em]" id="current-clock">--:--:--</p>
-                </div>
+    <!-- 3. MAIN DASHBOARD -->
+    <div id="main-ui" class="hidden opacity-0 transition-all duration-1000 dashboard-container">
+        <nav id="nav-bar" class="flex flex-col md:flex-row justify-between items-center glass px-8 py-3 rounded-[2rem] m-4 gap-4 shrink-0 border-2 border-white/10 translate-y-[-20px] opacity-0 transition-all duration-700">
+            <div class="flex items-center gap-6 w-full md:w-auto">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg text-white"><i data-lucide="activity" class="w-5 h-5"></i></div>
+                <div><h2 class="text-base font-black tracking-tighter uppercase text-nowrap text-inherit">Infrastructure Monitor</h2><p class="text-[8px] text-indigo-500 font-black tracking-[0.6em]" id="current-clock">--:--:--</p></div>
             </div>
-            
-            <div class="flex items-center justify-between md:justify-end gap-3 md:gap-5 w-full md:w-auto">
-                <button id="btn-eco" onclick="window.toggleEcoMode()" class="px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-[9px] font-bold text-slate-500 hover:text-emerald-400 flex items-center gap-2 transition-all uppercase">
-                    <i data-lucide="leaf" class="w-4 h-4"></i> ECO-SAVER
-                </button>
-                <div class="flex items-center gap-2">
-                    <button onclick="window.exportCSV()" class="p-2.5 bg-white/5 hover:bg-indigo-600 rounded-xl transition-all text-slate-300 flex items-center justify-center"><i data-lucide="database" class="w-4 h-4"></i></button>
-                    <button onclick="window.location.reload()" class="p-2.5 bg-white/5 hover:bg-rose-600 rounded-xl transition-all text-slate-300 flex items-center justify-center"><i data-lucide="power" class="w-4 h-4"></i></button>
+            <div class="flex items-center justify-between md:justify-end gap-5 w-full md:w-auto">
+                <button onclick="window.toggleDarkMode()" class="p-2.5 glass hover:bg-black/5 transition-all text-dim flex items-center justify-center shadow-sm"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
+                <button id="btn-eco" onclick="window.toggleEcoMode()" class="px-6 py-2.5 glass border-2 border-transparent text-[9px] font-black text-dim hover:text-emerald-500 flex items-center gap-3 transition-all uppercase tracking-widest font-black"><i data-lucide="leaf" class="w-4 h-4"></i> ECO-SAVER</button>
+                <div class="flex items-center gap-3">
+                    <button onclick="downloadPDF()" class="p-3 glass hover:bg-indigo-600 hover:text-white transition-all text-dim flex items-center justify-center"><i data-lucide="database" class="w-5 h-5"></i></button>
+                    <button onclick="location.reload()" class="p-3 glass hover:bg-rose-600 hover:text-white transition-all text-dim flex items-center justify-center"><i data-lucide="power" class="w-5 h-5"></i></button>
                 </div>
             </div>
         </nav>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 overflow-visible lg:overflow-hidden min-h-0">
-            <!-- Sidebar Left (Controls) -->
-            <aside class="lg:col-span-3 flex flex-col gap-4 md:gap-6 min-h-[400px] lg:min-h-0">
-                <div class="glass p-6 rounded-[3rem] flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.4em] mb-6 flex items-center justify-between shrink-0">
-                        <span>Switchboard <i data-lucide="info" class="w-4 h-4 info-btn inline-block ml-1 cursor-pointer" onclick="window.showInfoModal()"></i></span>
-                        <button onclick="window.resetAll()" class="text-[9px] text-rose-500 font-bold hover:underline uppercase tracking-widest">Flush</button>
-                    </h3>
+        <div class="master-grid">
+            <!-- Sidebar Left -->
+            <aside id="side-left" class="flex flex-col gap-4 min-h-0 overflow-hidden translate-x-[-30px] opacity-0 transition-all duration-700 delay-100">
+                <div class="glass p-6 rounded-[2.5rem] flex-1 flex flex-col min-h-0 overflow-hidden border-2 border-white/5">
+                    <div class="flex items-center justify-between shrink-0 mb-4">
+                        <h3 class="text-[9px] font-black text-indigo-600 uppercase tracking-[0.6em]">Switchboard</h3>
+                        <button onclick="window.resetAll()" class="text-[8px] text-rose-500 font-black uppercase hover:underline">Flush</button>
+                    </div>
+                    <!-- Fixed height and scroll to prevent jitter -->
                     <div id="device-list" class="space-y-3 overflow-y-auto flex-1 pr-2"></div>
                 </div>
-                <div class="glass p-6 rounded-[2.5rem] shrink-0 border border-white/5">
-                    <h4 class="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest shrink-0 text-center md:text-left">Network Stability</h4>
-                    <div class="flex items-center gap-4">
-                        <div class="flex-1 bg-black/40 h-2.5 rounded-full overflow-hidden">
-                            <div id="health-bar" class="h-full bg-indigo-500 transition-all duration-1000 shadow-[0_0_15px_rgba(99,102,241,0.5)]" style="width: 100%"></div>
+                <div class="glass p-6 rounded-[1.5rem] shrink-0 border-2 border-white/10">
+                    <h4 class="text-[9px] font-black text-dim uppercase mb-3 tracking-widest shrink-0">Resilience</h4>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 bg-black/10 dark:bg-white/10 h-2.5 rounded-full overflow-hidden">
+                            <div id="health-bar" class="h-full bg-indigo-500 transition-all duration-1000" style="width: 100%"></div>
                         </div>
-                        <span id="health-pct" class="text-xs font-mono font-bold text-white shrink-0">100%</span>
+                        <span id="health-pct" class="text-xs font-mono font-black text-dim">100%</span>
                     </div>
                 </div>
             </aside>
 
-            <!-- Center Viewport (3D Stage) -->
-            <section class="lg:col-span-6 relative flex flex-col min-h-[500px] lg:min-h-0 viz-container overflow-hidden">
-                <div id="viz-card" class="rounded-[3rem] md:rounded-[4rem] overflow-hidden relative flex-1 scanner border border-black/5 bg-black/20">
-                    <div id="three-container" class="absolute inset-0"></div>
-                    <div class="absolute bottom-6 md:bottom-8 left-6 md:left-8 right-6 md:right-8 flex flex-col sm:flex-row gap-3 md:gap-5 pointer-events-none">
-                        <div class="glass px-6 md:px-8 py-3 md:py-5 rounded-[2rem] border-l-8 border-indigo-500 flex-1 shadow-2xl backdrop-blur-2xl">
-                            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mb-1">Live Power Draw</p>
-                            <p id="hud-load" class="text-xl lg:text-3xl font-bold font-mono text-white text-nowrap">0.00kW</p>
+            <!-- Radial 2D Visualization -->
+            <section id="viz-center" class="relative flex flex-col min-h-0 overflow-hidden viz-container scale-95 opacity-0 transition-all duration-1000 delay-300">
+                <div id="viz-card" class="rounded-[3.5rem] overflow-hidden relative flex-1 border-2 border-white/20 bg-slate-900/50 scanner">
+                    <div id="radial-stage">
+                        <svg id="grid-svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40"><div class="core-orb" id="core-orb"></div></div>
+                        <div id="nodes-container" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+
+                    <div class="absolute top-6 left-6 pointer-events-none">
+                        <div class="glass px-5 py-3 rounded-2xl border-l-[6px] border-indigo-500 shadow-2xl backdrop-blur-3xl min-w-[130px]">
+                            <p class="text-[7px] text-dim uppercase font-black mb-0.5 tracking-tighter">Packet Draw</p>
+                            <p id="hud-load" class="text-xl font-black font-mono text-indigo-400">0.00kW</p>
                         </div>
-                        <div class="glass px-6 md:px-8 py-3 md:py-5 rounded-[2rem] border-l-8 border-emerald-500 flex-1 shadow-2xl backdrop-blur-2xl">
-                            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mb-1">Session Cost</p>
-                            <p id="hud-cost" class="text-xl lg:text-3xl font-bold font-mono text-white text-nowrap">₹0.00</p>
+                    </div>
+                    <div class="absolute top-6 right-6 pointer-events-none">
+                        <div class="glass px-5 py-3 rounded-2xl border-l-[6px] border-emerald-500 shadow-2xl backdrop-blur-3xl min-w-[130px]">
+                            <p class="text-[7px] text-dim uppercase font-black mb-0.5 tracking-tighter">Utility Cost</p>
+                            <p id="hud-cost" class="text-xl font-black font-mono text-emerald-400">₹0.00</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Sidebar Right (Analytics) -->
-            <aside class="lg:col-span-3 flex flex-col gap-4 md:gap-6 min-h-0 overflow-visible lg:overflow-hidden">
-                <div class="glass p-5 rounded-[2.5rem] h-[150px] shrink-0 border border-white/5 flex flex-col">
-                    <h3 class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 shrink-0">Telemetry Spectrum</h3>
+            <!-- Sidebar Right -->
+            <aside id="side-right" class="flex flex-col gap-4 min-h-0 overflow-hidden translate-x-[30px] opacity-0 transition-all duration-700 delay-500">
+                <div class="glass p-5 flex-1 flex flex-col overflow-hidden border-2 border-white/10 min-h-0">
+                    <h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-2 shrink-0">Telemetry Spectrum</h3>
                     <div class="flex-1 min-h-0"><canvas id="telemetryChart"></canvas></div>
                 </div>
-                <div class="glass p-6 rounded-[2.5rem] h-[200px] shrink-0 border border-white/5 flex flex-col">
-                    <h3 class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 shrink-0 text-center">Load Distribution</h3>
+                <div class="glass p-5 flex-1 flex flex-col overflow-hidden border-2 border-white/10 min-h-0">
+                    <h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-2 shrink-0 text-center">Radial Balance</h3>
                     <div class="flex-1 min-h-0 flex justify-center"><canvas id="distributionChart"></canvas></div>
                 </div>
-                <div class="glass p-6 rounded-[2.5rem] flex-1 flex flex-col min-h-[300px] lg:min-h-0 border border-white/5 overflow-hidden">
-                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-5">Activity Log</h3>
-                    <div id="log-container" class="flex-1 overflow-y-auto space-y-3 text-[9px] font-mono pr-2 scroll-smooth"></div>
+                <div class="glass p-6 rounded-[2rem] flex-[1.5] flex flex-col min-h-0 overflow-hidden font-black border-2 border-white/10">
+                    <h3 class="text-[9px] font-black text-dim uppercase tracking-widest mb-4 shrink-0 text-indigo-500">Traffic stream</h3>
+                    <div id="log-container" class="flex-1 overflow-y-auto space-y-3 text-[10px] font-mono pr-2 scroll-smooth uppercase font-black"></div>
                 </div>
             </aside>
         </div>
-    </main>
+    </div>
 
     <script>
-        /**
-         * --- 1. CORE UTILS & CLASSES ---
-         */
-        window.safeSetText = function(id, text) { const el = document.getElementById(id); if (el) el.innerText = text; };
-
-        window.addLog = function(msg, type) { 
+        /** --- INITIALIZATION & UTILITIES --- **/
+        window.safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+        
+        window.addLog = (msg, type) => { 
             const c = document.getElementById('log-container'); if (!c) return;
             const div = document.createElement('div');
-            const colors = { success: 'text-indigo-400', alert: 'text-rose-500', error: 'text-rose-500', info: 'text-cyan-400' };
-            div.className = `${colors[type] || 'text-slate-400'} border-l-2 border-current pl-3 py-1.5 bg-black/20 rounded-r-xl shadow-sm mb-2`;
-            div.innerHTML = `<span class="opacity-40 text-[7px] block font-bold">${new Date().toLocaleTimeString()}</span>${msg}`;
+            const colors = { success: 'text-emerald-500', alert: 'text-rose-500', error: 'text-rose-600', info: 'text-indigo-500' };
+            div.className = `${colors[type] || 'text-dim'} border-l-4 border-current pl-4 py-2 bg-black/5 dark:bg-white/5 rounded-r-xl shadow-sm mb-2 transition-all hover:translate-x-1 fade-slide-up`;
+            div.innerHTML = `<span class="opacity-50 text-[8px] block font-black mb-1">${new Date().toLocaleTimeString()}</span>${msg}`;
             c.prepend(div);
         };
 
-        window.showToast = function(msg, type) { 
+        window.showToast = (msg, type) => { 
             const container = document.getElementById('toast-container'); if (!container) return;
             const toast = document.createElement('div');
-            const colors = { success: 'bg-emerald-600', error: 'bg-rose-600', info: 'bg-cyan-600' };
-            toast.className = `${colors[type]} px-8 py-3 rounded-[1.25rem] text-white font-bold text-[10px] shadow-lg transition-all duration-300 transform scale-0 flex items-center gap-3`;
-            toast.innerHTML = `<i data-lucide="zap" class="w-4 h-4"></i> ${msg}`;
-            container.appendChild(toast);
-            lucide.createIcons();
+            const colors = { info: 'bg-indigo-600', error: 'bg-rose-600', success: 'bg-emerald-600' };
+            toast.className = `${colors[type]} text-white px-8 py-4 rounded-2xl font-black text-xs shadow-2xl transition-all duration-300 transform scale-0 flex items-center gap-4`;
+            toast.innerHTML = `<i data-lucide="zap" class="w-5 h-5"></i> ${msg.toUpperCase()}`;
+            container.appendChild(toast); lucide.createIcons();
             setTimeout(() => toast.classList.remove('scale-0'), 10);
-            setTimeout(() => { toast.classList.add('scale-0'); setTimeout(() => toast.remove(), 300); }, 3000);
+            setTimeout(() => { toast.classList.add('scale-0'); setTimeout(() => toast.remove(), 300); }, 3500);
         };
 
         class ConsumptionProfile {
-            constructor(base, varnce, phases = []) {
-                this.base = base; this.varnce = varnce; this.phases = phases;
-                this.currentPhaseIndex = 0; this.phaseTimer = 0;
-            }
-            getLoad() {
-                let multi = 1;
-                if(this.phases && this.phases.length > 0) {
-                    const p = this.phases[this.currentPhaseIndex]; multi = p.multi;
-                    this.phaseTimer++;
-                    if(this.phaseTimer >= p.duration) { this.phaseTimer = 0; this.currentPhaseIndex = (this.currentPhaseIndex + 1) % this.phases.length; }
-                }
-                return (this.base + (Math.random() - 0.5) * this.varnce) * multi;
-            }
+            constructor(base, varc) { this.base = base; this.varc = varc; }
+            getLoad() { return (this.base + (Math.random() - 0.5) * this.varc); }
         }
-
-        /**
-         * --- 2. GLOBAL STATE ---
-         */
-        let telChart, distChart;
-        let devices = [];
-        const state = {
-            totalLoad: 0, ecoMode: false, currentModalDevice: null, history: Array(25).fill(0),
-            three: { scene: null, camera: null, renderer: null, nodes: [], particles: [], core: null, paths: [], handshakeLines: [] },
-            analytics: [], clockEditMode: 'start', activeUnit: 'h',
-            tempSchedule: { start: { h:0, m:0, s:0 }, stop: { h:0, m:0, s:0 } }
-        };
 
         const deviceDefinitions = [
-            { id: 0, type: 'fridge', name: "Smart Refrigerator", base: 1.2, var: 0.15, color: '#6366f1', phases: [{duration: 40, multi: 1, name: 'Idle'}, {duration: 20, multi: 1.8, name: 'Cooling'}] },
-            { id: 1, type: 'washing', name: "Industrial Washer", base: 4.8, var: 1.5, color: '#a855f7', phases: [{duration: 15, multi: 0.2, name: 'Fill'}, {duration: 30, multi: 1.5, name: 'Heat'}, {duration: 20, multi: 1.2, name: 'Spin'}] },
-            { id: 2, type: 'tv', name: "Cinema OLED Hub", base: 0.6, var: 0.05, color: '#f43f5e', phases: [] },
-            { id: 3, type: 'fan', name: "Climate Control Fan", base: 0.4, var: 0.1, color: '#10b981', phases: [] },
-            { id: 4, type: 'oven', name: "Precision Oven", base: 3.5, var: 0.4, color: '#f59e0b', phases: [{duration: 45, multi: 1, name: 'Bake'}] }
+            { id: 0, type: 'fridge', name: "Neural Chiller", base: 1.2, varc: 0.15, color: '#6366f1', icon: 'refrigerator' },
+            { id: 1, type: 'washing', name: "Motor IoT84", base: 4.8, varc: 1.5, color: '#a855f7', icon: 'settings' },
+            { id: 2, type: 'tv', name: "Control Terminal", base: 0.6, varc: 0.05, color: '#f43f5e', icon: 'monitor' },
+            { id: 3, type: 'fan', name: "Stand Fan IoT50", base: 0.4, varc: 0.1, color: '#00c896', icon: 'fan' },
+            { id: 4, type: 'led', name: "Smart Led IoT40", base: 0.3, varc: 0.05, color: '#f59e0b', icon: 'lightbulb' }
         ];
 
-        /**
-         * --- 3. SYSTEM FUNCTIONS ---
-         */
-        window.saveState = function() {
-            localStorage.setItem('energy_monitor_universal_v1', JSON.stringify(devices.map(d => ({ 
-                id: d.id, on: d.on, health: d.health, start: d.startTime, stop: d.stopTime, runtime: d.runtime 
-            }))));
-        };
+        let telChart, distChart;
+        let devices = [];
+        let particles = [];
+        let state = { totalLoad: 0, ecoMode: false, history: Array(25).fill(0) };
 
-        window.loadState = function() {
-            const saved = localStorage.getItem('energy_monitor_universal_v1');
-            const data = saved ? JSON.parse(saved) : [];
-            devices = deviceDefinitions.map(def => {
-                const s = data.find(x => x.id === def.id) || {};
-                return { 
-                    ...def, on: s.on || false, health: s.health ?? 100, startTime: s.start ?? null, stopTime: s.stop ?? null, runtime: s.runtime ?? 0, 
-                    currentLoad: 0, internalTemp: 24, isConnecting: false, flowReady: s.on || false, flashEffect: 0.0,
-                    engine: new ConsumptionProfile(def.base, def.var, def.phases) 
-                };
-            });
-        };
-
-        window.authorize = function() {
-            const val = document.getElementById('key-input').value;
-            if(val === 'admin123') {
-                document.getElementById('auth-layer').style.display = 'none';
-                const mainUi = document.getElementById('main-ui');
-                mainUi.classList.replace('hidden', 'flex');
-                setTimeout(() => { mainUi.style.opacity = '1'; initAll(); }, 50);
-            } else { window.showToast("Key Validation Failed", "error"); }
-        };
-
-        window.toggleDevice = function(id, ts = null) {
-            const dev = devices[id];
-            const targetState = ts !== null ? ts : !dev.on;
+        /** --- TRANSITION MANAGEMENT --- **/
+        window.onload = () => {
+            const loader = document.getElementById('splash-loader');
+            setTimeout(() => { if(loader) loader.style.width = '100%'; }, 100);
             
-            if(targetState && !dev.on) {
-                dev.on = true; 
-                dev.isConnecting = true;
-                dev.flowReady = false;
-                window.addLog(`LINKING >> ${dev.name.toUpperCase()}`, "info");
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                const auth = document.getElementById('auth-layer');
+                splash.style.opacity = '0';
+                splash.style.transform = 'scale(1.2)';
                 setTimeout(() => {
-                    dev.isConnecting = false;
-                    dev.flowReady = true;
-                    dev.flashEffect = 1.0; 
-                    window.addLog(`CONNECTION ACTIVE >> ${dev.name.toUpperCase()}`, "success");
-                    state.three.particles.filter(p => p.devId === id).forEach(p => { p.t = 0; p.flowSpeed = 0.08; });
-                }, 1500);
-            } else if(!targetState) {
-                dev.on = false;
-                dev.isConnecting = false;
-                dev.flowReady = false;
-                window.addLog(`${dev.name.toUpperCase()} >> TERMINATED`, "alert");
-            }
-
-            renderDevices();
-            window.saveState();
+                    splash.style.display = 'none';
+                    auth.classList.replace('hidden', 'flex');
+                    setTimeout(() => auth.style.opacity = '1', 50);
+                }, 1000);
+            }, 3000);
         };
 
-        window.resetAll = function() { devices.forEach((d,i) => window.toggleDevice(i, false)); };
+        window.handleAuthorize = () => {
+            if(document.getElementById('key-input').value === 'admin123') {
+                const auth = document.getElementById('auth-layer');
+                const ui = document.getElementById('main-ui');
+                auth.style.opacity = '0';
+                auth.style.transform = 'translateY(-20px)';
+                
+                setTimeout(() => {
+                    auth.style.display = 'none';
+                    ui.classList.replace('hidden', 'flex');
+                    setTimeout(() => {
+                        ui.style.opacity = '1';
+                        // Staggered dashboard entrance
+                        document.getElementById('nav-bar').style.transform = 'translateY(0)';
+                        document.getElementById('nav-bar').style.opacity = '1';
+                        document.getElementById('side-left').style.transform = 'translateX(0)';
+                        document.getElementById('side-left').style.opacity = '1';
+                        document.getElementById('side-right').style.transform = 'translateX(0)';
+                        document.getElementById('side-right').style.opacity = '1';
+                        document.getElementById('viz-center').style.transform = 'scale(1)';
+                        document.getElementById('viz-center').style.opacity = '1';
+                        initDashboard();
+                    }, 50);
+                }, 800);
+            } else window.showToast("Handshake Refused", "error");
+        };
 
-        /**
-         * --- 4. 3D HARDWARE (GRAND SCALE 4.5x) ---
-         */
-        function createHardware(def) {
-            const node = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({ color: def.color, metalness: 0.1, roughness: 0.4 });
-            if(def.type === 'fridge') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 5.2, 2.2), mat);
-                const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 64;
-                const texture = new THREE.CanvasTexture(canvas);
-                const label = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0 }));
-                label.position.set(0, 1.2, 1.11); node.add(body, label);
-                node.userData = { label, texture, context: canvas.getContext('2d'), type: 'fridge' };
-            } else if(def.type === 'washing') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.2, 3), mat);
-                const rim = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.1, 16, 64), new THREE.MeshStandardMaterial({color:0x94a3b8, metalness:1}));
-                rim.position.z = 1.51; 
-                const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.5, 32), new THREE.MeshStandardMaterial({color:0xdddddd}));
-                drum.rotation.x = Math.PI/2; drum.position.z = 0.5; node.add(body, rim, drum);
-                node.userData = { drum, type: 'washing' };
-            } else if(def.type === 'tv') {
-                const screen = new THREE.Mesh(new THREE.BoxGeometry(5.4, 3.4, 0.25), mat);
-                const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
-                const texture = new THREE.CanvasTexture(canvas);
-                const screenPlane = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 3.2), new THREE.MeshBasicMaterial({ map: texture }));
-                screenPlane.position.z = 0.13; node.add(screen, screenPlane);
-                const bubbles = []; for(let j=0; j<6; j++) bubbles.push({ x: Math.random()*256, y: Math.random()*128, r: 15, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, hue: Math.random()*360 });
-                node.userData = { texture, context: canvas.getContext('2d'), bubbles, type: 'tv' };
-            } else if(def.type === 'fan') {
-                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4.5), mat);
-                const blades = new THREE.Group();
-                for(let j=0; j<3; j++) {
-                    const b = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.05, 0.5), new THREE.MeshStandardMaterial({color: 0xffffff}));
-                    b.rotation.y = (j * Math.PI * 2) / 3; blades.add(b);
-                }
-                blades.position.y = 2.2; blades.rotation.x = Math.PI/2;
-                const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.05, 8, 48), new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0 }));
-                ring.position.y = 2.8; ring.rotation.x = Math.PI/2;
-                node.add(pole, blades, ring);
-                node.userData = { blades, holoRing: ring, type: 'fan' };
+        /** --- CORE UI LOGIC --- **/
+        window.toggleDarkMode = () => {
+            const isDark = document.body.classList.toggle('light-mode');
+            document.getElementById('theme-icon')?.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+            const textColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim();
+            if(telChart) { telChart.options.scales.y.ticks.color = textColor; telChart.update(); }
+            if(distChart) { distChart.options.plugins.legend.labels.color = textColor; distChart.update(); }
+        };
+
+        window.toggleEcoMode = () => {
+            state.ecoMode = !state.ecoMode;
+            document.getElementById('btn-eco')?.classList.toggle('eco-active');
+            const core = document.getElementById('core-orb');
+            if (core) {
+                core.style.boxShadow = state.ecoMode ? "0 0 50px #00ff00" : "0 0 50px #6366f1";
+                core.style.background = state.ecoMode ? "radial-gradient(circle, #fff, #00ff00)" : "radial-gradient(circle, #fff, #6366f1)";
+            }
+            window.addLog(state.ecoMode ? "ECO-DRIVE: OPTIMIZED" : "ECO-DRIVE: DEACTIVATED", state.ecoMode ? "success" : "alert");
+        };
+
+        window.toggleDevice = (id) => {
+            const d = devices[id];
+            d.on = !d.on;
+            if (d.on) {
+                d.negotiating = true; d.flowReady = false;
+                window.addLog(`NODE ${id} >> CIRCUIT NEGOTIATING`, "info");
+                setTimeout(() => {
+                    d.negotiating = false;
+                    setTimeout(() => {
+                        d.flowReady = true;
+                        window.addLog(`NODE ${id} >> LINK ACTIVE`, "success");
+                    }, 500);
+                }, 500);
             } else {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(3, 2.8, 3), mat);
-                const glass = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.4), new THREE.MeshPhysicalMaterial({color:0x000000, transparent:true, opacity:0.6}));
-                glass.position.z = 1.51;
-                const glow = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.2, 2.4), new THREE.MeshBasicMaterial({color: 0xff4400, transparent:true, opacity:0}));
-                node.add(body, glass, glow);
-                node.userData = { glow, type: 'oven' };
+                d.flowReady = false; d.negotiating = false;
+                window.addLog(`NODE ${id} >> CIRCUIT OPEN`, "alert");
             }
-            return node;
-        }
-
-        function init3D() {
-            const c = document.getElementById('three-container'); if(!c) return;
-            state.three.scene = new THREE.Scene();
-            state.three.camera = new THREE.PerspectiveCamera(45, c.clientWidth / c.clientHeight, 0.1, 2000);
-            state.three.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            state.three.renderer.setSize(c.clientWidth, c.clientHeight);
-            c.appendChild(state.three.renderer.domElement);
-            state.three.scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-            const p1 = new THREE.PointLight(0xffffff, 1.5, 300); p1.position.set(10, 50, 50); state.three.scene.add(p1);
-            
-            const radius = 48;
-            devices.forEach((d, i) => {
-                const angle = (i / devices.length) * Math.PI * 2;
-                const node = createHardware(d);
-                node.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-                node.lookAt(0, 50, 200); // Always face the user
-                node.scale.setScalar(4.5); 
-                state.three.scene.add(node); state.three.nodes.push(node);
-                
-                const path = new THREE.QuadraticBezierCurve3(
-                    new THREE.Vector3(0,0,0), 
-                    new THREE.Vector3(Math.cos(angle)*radius*0.5, 20, Math.sin(angle)*radius*0.5), 
-                    node.position.clone()
-                );
-                state.three.paths.push(path);
-
-                const lineGeo = new THREE.BufferGeometry().setFromPoints(path.getPoints(50));
-                const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
-                const line = new THREE.Line(lineGeo, lineMat);
-                state.three.scene.add(line);
-                state.three.handshakeLines.push(line);
-                
-                for(let p=0; p<35; p++) {
-                    const pMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
-                    const photon = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), pMat);
-                    state.three.scene.add(photon); 
-                    state.three.particles.push({ 
-                        mesh: photon, material: pMat, devId: d.id, t: Math.random(), 
-                        targetSpeed: 0.002 + Math.random() * 0.003, flowSpeed: 0,
-                        offset: new THREE.Vector3((Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5)
-                    });
-                }
-            });
-            
-            const core = new THREE.Group(); 
-            const corePulse = new THREE.Mesh(new THREE.IcosahedronGeometry(3, 2), new THREE.MeshStandardMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.2 })); 
-            const coreInner = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 32), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00ffff, emissiveIntensity: 3 }));
-            core.add(corePulse, coreInner);
-            state.three.scene.add(core); state.three.core = core; state.three.corePulse = corePulse;
-            
-            updateCamera();
-            animate3D();
-        }
-
-        function updateCamera() {
-            if(!state.three.camera) return;
-            const w = window.innerWidth;
-            const zDist = w < 768 ? 220 : 160;
-            const yDist = w < 768 ? 140 : 100;
-            state.three.camera.position.set(0, yDist, zDist);
-            state.three.camera.lookAt(0, 0, 0);
-        }
-
-        function animate3D() {
-            requestAnimationFrame(animate3D);
-            const time = Date.now() * 0.001;
-            const loadFactor = state.totalLoad / 10;
-
-            if(state.three.core) { 
-                state.three.core.rotation.y += 0.005 + loadFactor * 0.06; 
-                state.three.corePulse.scale.setScalar(1 + Math.sin(time * 5) * 0.25);
-                state.three.core.scale.setScalar(1.1 + Math.sin(time * 3) * 0.08); 
-            }
-
-            devices.forEach((dev, i) => {
-                const n = state.three.nodes[i]; const u = n.userData; const animS = state.ecoMode ? 0.6 : 1.2;
-                state.three.handshakeLines[i].material.opacity = dev.isConnecting ? 0.8 + Math.sin(time*20)*0.2 : 0;
-                
-                if(dev.flashEffect > 0) {
-                    const popScale = 4.5 * (1 + dev.flashEffect * 0.5);
-                    n.scale.setScalar(popScale);
-                    dev.flashEffect -= 0.05;
-                } else { n.scale.setScalar(4.5); }
-
-                if(dev.on) {
-                    if(u.type === 'fridge') {
-                        u.label.material.opacity = 1; const ctx = u.context; ctx.clearRect(0,0,128,64);
-                        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 36px monospace'; ctx.fillText(`${Math.round(dev.internalTemp)}°C`, 20, 45);
-                        u.texture.needsUpdate = true; if(dev.internalTemp > 4) dev.internalTemp -= 0.01;
-                    } else if(u.type === 'tv') {
-                        const ctx = u.context; ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,256,128);
-                        u.bubbles.forEach(b => { b.x += b.vx; b.y += b.vy; if(b.x<b.r || b.x>256-b.r) b.vx*=-1; if(b.y<b.r || b.y>128-b.r) b.vy*=-1; ctx.fillStyle = `hsla(${180 + Math.sin(time)*30}, 80%, 50%, 0.8)`; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); });
-                        u.texture.needsUpdate = true;
-                    } else if(u.type === 'fan') {
-                        u.blades.rotation.z += 2.5 * animS; u.holoRing.material.opacity = 0.6 + Math.sin(time*10)*0.2; u.holoRing.rotation.y += 0.05;
-                    } else if(u.type === 'washing') {
-                        u.drum.rotation.y += 1.5 * animS; n.position.y = Math.sin(time*100)*0.1*animS;
-                    } else if(u.type === 'oven') { u.glow.material.opacity = 0.6 + Math.sin(time*5)*0.2; }
+            updateNodeVisuals(id);
+            // Updating sidebar manually to avoid layout jitter from full innerHTML replace
+            const toggleBtn = document.querySelector(`[data-device-toggle="${id}"]`);
+            if (toggleBtn) {
+                const inner = toggleBtn.querySelector('div');
+                if (d.on) {
+                    inner.classList.add('translate-x-5', '!bg-indigo-600', 'shadow-[0_0_10px_rgba(99,102,241,0.8)]');
                 } else {
-                    if(u.type === 'fridge') u.label.material.opacity = 0;
-                    if(u.type === 'fan') u.holoRing.material.opacity = 0;
-                    if(u.type === 'oven') u.glow.material.opacity = 0;
-                    n.position.y = 0;
+                    inner.classList.remove('translate-x-5', '!bg-indigo-600', 'shadow-[0_0_10px_rgba(99,102,241,0.8)]');
                 }
-            });
-
-            state.three.particles.forEach(p => {
-                const dev = devices[p.devId];
-                if(dev && dev.flowReady) { 
-                    p.mesh.visible = true; 
-                    const target = p.targetSpeed + (dev.currentLoad / 300);
-                    p.flowSpeed += (target - p.flowSpeed) * 0.05; 
-                    p.t += p.flowSpeed; if(p.t > 1) p.t = 0; 
-                    const basePos = state.three.paths[p.devId].getPoint(p.t);
-                    p.mesh.position.set(basePos.x + p.offset.x * Math.sin(p.t * Math.PI), basePos.y + p.offset.y * Math.sin(p.t * Math.PI), basePos.z + p.offset.z * Math.cos(p.t * Math.PI));
-                    p.mesh.scale.setScalar(0.25 * (1.2 + Math.sin(p.t * Math.PI) * 3));
-                    p.material.opacity = 0.4 + Math.sin(p.t * Math.PI) * 0.6;
-                } else {
-                    if(p.mesh) p.mesh.visible = false;
-                    p.flowSpeed = 0;
-                }
-            });
-            if(state.three.renderer) state.three.renderer.render(state.three.scene, state.three.camera);
-        }
-
-        /**
-         * --- 5. INTERFACE LOGIC ---
-         */
-        window.setModalTab = function(tab) { 
-            document.getElementById('modal-content-info')?.classList.toggle('hidden', tab !== 'info'); 
-            document.getElementById('modal-content-schedule')?.classList.toggle('hidden', tab !== 'schedule'); 
-            document.getElementById('tab-info')?.classList.toggle('bg-indigo-600', tab === 'info'); 
-            document.getElementById('tab-schedule')?.classList.toggle('bg-indigo-600', tab === 'schedule'); 
-        };
-
-        window.closeInfoModal = function() { const m = document.getElementById('info-modal'); if (m) { m.style.opacity = '0'; setTimeout(() => m.style.display = 'none', 300); } };
-
-        window.setClockEditMode = function(mode) { 
-            state.clockEditMode = mode; 
-            document.getElementById('clock-mode-start').className = `flex-1 py-3 rounded-2xl text-[10px] font-bold transition-all border border-white/5 ${mode === 'start' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400'} uppercase tracking-widest text-center`;
-            document.getElementById('clock-mode-stop').className = `flex-1 py-3 rounded-2xl text-[10px] font-bold transition-all border border-white/5 ${mode === 'stop' ? 'bg-rose-600 text-white' : 'bg-white/5 text-slate-400'} uppercase tracking-widest text-center`;
-            updateClockUI(); 
-        };
-
-        window.setActiveUnit = function(unit) { state.activeUnit = unit; ['h', 'm', 's'].forEach(u => document.getElementById(`unit-${u}`).classList.toggle('active', u === unit)); };
-
-        window.applySchedule = function() {
-            const pad = (v) => v.toString().padStart(2, '0');
-            const d = devices[state.currentModalDevice];
-            d.startTime = `${pad(state.tempSchedule.start.h)}:${pad(state.tempSchedule.start.m)}:${pad(state.tempSchedule.start.s)}`;
-            d.stopTime = `${pad(state.tempSchedule.stop.h)}:${pad(state.tempSchedule.stop.m)}:${pad(state.tempSchedule.stop.s)}`;
-            window.addLog(`SCHEDULE COMMITTED >> ${d.name}`, "info");
-            window.closeInfoModal(); renderDevices(); window.saveState();
-        };
-
-        window.clearSchedule = function() { state.tempSchedule = { start:{h:0,m:0,s:0}, stop:{h:0,m:0,s:0} }; updateClockUI(); };
-
-        window.toggleEcoMode = function() { 
-            state.ecoMode = !state.ecoMode; 
-            document.getElementById('btn-eco')?.classList.toggle('eco-active'); 
-            const tCol = state.ecoMode ? 0x00ff88 : 0x00ffff; 
-            state.three.particles.forEach(p => p.material.color.setHex(tCol)); 
-        };
-
-        window.showInfoModal = function() { 
-            const m = document.getElementById('info-modal'); if (m) { 
-                window.safeSetText('modal-title', "Switchboard Details"); 
-                m.style.display = 'flex'; setTimeout(() => m.style.opacity = '1', 10); 
-            } window.setModalTab('info'); 
-        };
-
-        window.exportCSV = function() { 
-            let csv = "Timestamp,TotalLoad_kW\n"; state.analytics.forEach(r => { csv += `${r.time},${r.load}\n`; }); 
-            const blob = new Blob([csv], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'nexus_data.csv'; a.click(); 
-        };
-
-        /**
-         * --- 6. CLOCK LOGIC ---
-         */
-        function initClockFace() {
-            const face = document.getElementById('clock-face');
-            for(let i=1; i<=12; i++) {
-                const num = document.createElement('div');
-                num.className = 'clock-number'; num.innerText = i;
-                const angle = (i * 30) * (Math.PI / 180);
-                num.style.left = `calc(50% + ${85 * Math.sin(angle)}px)`;
-                num.style.top = `calc(50% - ${85 * Math.cos(angle)}px)`;
-                face.appendChild(num);
             }
-            document.getElementById('analog-picker').addEventListener('mousedown', handleClockInput);
-        }
+        };
 
-        function handleClockInput(e) {
-            const wrapper = document.getElementById('analog-picker');
-            const rect = wrapper.getBoundingClientRect();
-            const mouseX = e.clientX - (rect.left + rect.width / 2);
-            const mouseY = e.clientY - (rect.top + rect.height / 2);
-            let angle = Math.atan2(mouseY, mouseX) * (180 / Math.PI) + 90;
-            if (angle < 0) angle += 360;
-            let target = state.tempSchedule[state.clockEditMode];
-            if(state.activeUnit === 'h') { target.h = Math.round(angle / 30) % 12; if (target.h === 0) target.h = 12; }
-            else { let val = Math.round(angle / 6) % 60; if(state.activeUnit === 'm') target.m = val; else target.s = val; }
-            updateClockUI();
-        }
+        window.resetAll = () => devices.forEach((d, i) => { if(d.on) window.toggleDevice(i); });
 
-        function updateClockUI() {
-            const pad = (v) => v.toString().padStart(2, '0');
-            const current = state.tempSchedule[state.clockEditMode];
-            window.safeSetText('picker-h', pad(current.h)); window.safeSetText('picker-m', pad(current.m)); window.safeSetText('picker-s', pad(current.s));
-            document.getElementById('hand-h').style.transform = `translateX(-50%) rotate(${(current.h % 12) * 30 + current.m * 0.5}deg)`;
-            document.getElementById('hand-m').style.transform = `translateX(-50%) rotate(${current.m * 6}deg)`;
-            document.getElementById('hand-s').style.transform = `translateX(-50%) rotate(${current.s * 6}deg)`;
-        }
-
-        /**
-         * --- 7. UI RENDERERS ---
-         */
-        function renderDevices() {
-            const container = document.getElementById('device-list'); if (!container) return;
-            container.innerHTML = devices.map(d => `
-                <div class="glass p-4 rounded-2xl flex items-center justify-between border border-white/5 hover:border-cyan-500/30 transition-all gap-3 min-h-0">
-                    <div class="flex items-center gap-3 min-w-0 flex-1">
-                        <div class="w-1.5 h-10 rounded-full shrink-0 shadow-lg" style="background: ${d.color}"></div>
-                        <div class="min-w-0">
-                            <p class="text-[13px] font-bold text-white uppercase tracking-tighter truncate">${d.name}</p>
-                            <p class="text-[8px] text-slate-500 font-mono uppercase">${d.type === 'fridge' && d.on ? `T: ${Math.round(d.internalTemp)}°C` : `HEALTH: ${Math.round(d.health)}%`}</p>
+        /** --- 2D VISUALIZATION ENGINE --- **/
+        function renderRadialNodes() {
+            const container = document.getElementById('nodes-container'); if (!container) return;
+            container.innerHTML = devices.map((d, i) => {
+                const angle = (i * 2 * Math.PI) / devices.length - Math.PI / 2;
+                const swRad = 200, baseRad = 380; // Stable radii
+                const swPos = { x: 50 + (swRad/10) * Math.cos(angle), y: 50 + (swRad/10) * Math.sin(angle) };
+                const devPos = { x: 50 + (baseRad/10) * Math.cos(angle), y: 50 + (baseRad/10) * Math.sin(angle) };
+                return `
+                    <div class="device-node" id="node-${d.id}" style="left: ${devPos.x}%; top: ${devPos.y}%">
+                        <div class="node-icon-bg flex items-center justify-center">
+                             <div id="ani-${d.id}" class="transition-all duration-500"><i data-lucide="${d.icon}" class="w-8 h-8 text-white"></i></div>
+                             <span class="text-[8px] font-black uppercase opacity-50 tracking-widest text-center mt-1">${d.name}</span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <i data-lucide="clock" class="w-4 h-4 text-slate-400 cursor-pointer" onclick="window.openSchedule(${d.id})"></i>
-                        <span id="load-val-${d.id}" class="text-[11px] font-mono font-bold w-12 text-right text-cyan-400">--</span>
-                        <button onclick="window.toggleDevice(${d.id})" class="w-9 h-4.5 bg-black/40 rounded-full relative border border-white/10 shrink-0"><div class="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${d.on ? 'translate-x-4.5 !bg-cyan-500 shadow-[0_0_8px_#00ffff]' : ''}"></div></button>
+                    <div class="absolute transition-all cursor-pointer pointer-events-auto" onclick="window.toggleDevice(${d.id})" style="left: ${swPos.x}%; top: ${swPos.y}%; transform: translate(-50%, -50%)">
+                        <div id="sw-vis-${d.id}" class="w-8 h-8 bg-slate-800 rounded-lg border-2 border-slate-700 flex items-center justify-center shadow-lg hover:border-indigo-400 transition-colors">
+                            <div class="w-1.5 h-4 bg-red-500 rounded-full transition-all" id="sw-indicator-${d.id}"></div>
+                        </div>
                     </div>
-                </div>
-            `).join(''); lucide.createIcons();
+                `;
+            }).join('');
+            lucide.createIcons();
+            setupGridPaths();
         }
 
-        window.openSchedule = function(id) { 
-            state.currentModalDevice = id; const d = devices[id]; const m = document.getElementById('info-modal'); 
-            if (m) { window.safeSetText('modal-title', d.name); window.safeSetText('diag-runtime', d.runtime.toFixed(1)+'h'); m.style.display = 'flex'; setTimeout(() => m.style.opacity = '1', 10); } 
-            if(d.startTime) { const p = d.startTime.split(':'); state.tempSchedule.start = { h: parseInt(p[0]), m: parseInt(p[1]), s: parseInt(p[2]) }; }
-            if(d.stopTime) { const p = d.stopTime.split(':'); state.tempSchedule.stop = { h: parseInt(p[0]), m: parseInt(p[1]), s: parseInt(p[2]) }; }
-            window.setClockEditMode('start'); window.setModalTab('info');
-        };
+        function setupGridPaths() {
+            const svg = document.getElementById('grid-svg'); if (!svg) return;
+            svg.innerHTML = ''; particles = [];
+            devices.forEach((d, i) => {
+                const angle = (i * 2 * Math.PI) / devices.length - Math.PI / 2;
+                const cX = 500, cY = 500, swR = 200, devR = 380;
+                const swPos = { x: cX + swR * Math.cos(angle), y: cY + swR * Math.sin(angle) };
+                const devPos = { x: cX + devR * Math.cos(angle), y: cY + devR * Math.sin(angle) };
+                
+                // Seg A: Core -> Switch
+                createPath(svg, cX, cY, swPos.x, swPos.y, `pathA-${d.id}`);
+                // Seg B: Switch -> Device (No LED middleman)
+                createPath(svg, swPos.x, swPos.y, devPos.x, devPos.y, `pathB-${d.id}`);
+                
+                for(let p=0; p<4; p++) {
+                    particles.push({ id: d.id, seg: 'A', offset: Math.random(), el: createParticle(svg) });
+                    particles.push({ id: d.id, seg: 'B', offset: Math.random(), el: createParticle(svg) });
+                }
+            });
+        }
+
+        function createPath(svg, x1, y1, x2, y2, id) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
+            path.setAttribute("class", "power-line");
+            path.setAttribute("id", id);
+            svg.appendChild(path);
+        }
+
+        function createParticle(svg) {
+            const p = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            p.setAttribute("r", "4"); p.setAttribute("class", "particle");
+            p.style.display = 'none'; svg.appendChild(p); return p;
+        }
+
+        function updateNodeVisuals(id) {
+            const d = devices[id];
+            const indicator = document.getElementById(`sw-indicator-${id}`);
+            const node = document.getElementById(`node-${id}`)?.querySelector('.node-icon-bg');
+            if (indicator) {
+                indicator.style.backgroundColor = d.on ? "#00ff00" : "#ff0000";
+                indicator.style.boxShadow = d.on ? "0 0 12px #00ff00" : "none";
+            }
+            if (d.on) node?.classList.add('active-glow'); else node?.classList.remove('active-glow');
+        }
+
+        function animate() {
+            particles.forEach(p => {
+                const d = devices[p.id];
+                const active = p.seg === 'A' || (d.on && d.flowReady);
+                const path = document.getElementById(`path${p.seg}-${p.id}`);
+                
+                if (active && path) {
+                    p.el.style.display = 'block';
+                    let speed = 0.007 + (d.currentLoad || 0) * 0.0012;
+                    p.offset += speed; if (p.offset > 1) p.offset = 0;
+                    try {
+                        const length = path.getTotalLength(), point = path.getPointAtLength(p.offset * length);
+                        p.el.setAttribute("cx", point.x); p.el.setAttribute("cy", point.y);
+                        let color = state.ecoMode ? "#00ff00" : "#22d3ee";
+                        p.el.setAttribute("fill", color);
+                        path.classList.add('active');
+                        if(state.ecoMode) path.classList.add('eco'); else path.classList.remove('eco');
+                    } catch(e) {}
+                } else {
+                    p.el.style.display = 'none'; 
+                    if(path) path.classList.remove('active', 'eco');
+                }
+            });
+
+            devices.forEach(d => {
+                const ani = document.getElementById(`ani-${d.id}`);
+                if (d.on && d.flowReady && ani) {
+                    if (d.type === 'fan') ani.classList.add('fan-rotating');
+                    if (d.type === 'washing') ani.classList.add('rotating');
+                    if (d.type === 'led') ani.style.filter = `drop-shadow(0 0 15px ${state.ecoMode ? "#00ff00" : "#f59e0b"})`;
+                } else if (ani) {
+                    ani.classList.remove('fan-rotating', 'rotating'); ani.style.filter = "none";
+                }
+            });
+            requestAnimationFrame(animate);
+        }
+
+        /** --- SYSTEM LOOP --- **/
+        function renderDeviceList() {
+            const container = document.getElementById('device-list'); if (!container) return;
+            
+            // To prevent switchboard jittering, we check if innerHTML needs full refresh 
+            // or just value updates. For simplicity and stability, we use a single render 
+            // and then update specific nodes in intervals.
+            if (container.children.length === 0) {
+                container.innerHTML = devices.map(d => `
+                    <div class="glass p-4 flex items-center justify-between border border-white/10 hover:border-indigo-500/50 transition-all gap-4">
+                        <div class="flex items-center gap-4 min-w-0 flex-1">
+                            <div class="w-2.5 h-10 rounded-full shrink-0" style="background: ${d.color}; box-shadow: 0 0 10px ${d.color}"></div>
+                            <div class="min-w-0">
+                                <p class="text-[12px] font-black uppercase truncate">${d.name}</p>
+                                <p id="status-text-${d.id}" class="text-[8px] text-dim font-black uppercase">${d.on ? 'SYNCING' : 'OFFLINE'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <span id="load-val-${d.id}" class="text-[10px] font-mono font-black w-14 text-right text-indigo-500">--</span>
+                            <button onclick="window.toggleDevice(${d.id})" data-device-toggle="${d.id}" class="w-10 h-5 bg-black/10 dark:bg-white/10 rounded-full relative overflow-hidden transition-all">
+                                <div class="absolute top-1 left-1 w-3 h-3 bg-slate-400 rounded-full transition-all duration-300 transform"></div>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
+
+            // Efficiently update values without re-rendering the whole DOM list
+            devices.forEach(d => {
+                const loadEl = document.getElementById(`load-val-${d.id}`);
+                const statusEl = document.getElementById(`status-text-${d.id}`);
+                if (loadEl) loadEl.innerText = (d.on && d.flowReady) ? d.currentLoad.toFixed(1)+'kW' : '--';
+                if (statusEl) statusEl.innerText = d.on ? (d.flowReady ? 'LINK: OK' : 'SYNCING') : 'OFFLINE';
+            });
+        }
 
         function initCharts() {
-            const ctx1 = document.getElementById('telemetryChart')?.getContext('2d');
-            const ctx2 = document.getElementById('distributionChart')?.getContext('2d');
-            Chart.defaults.color = '#94a3b8';
-            if(ctx1) telChart = new Chart(ctx1, { type: 'line', data: { labels: Array(25).fill(''), datasets: [{ data: state.history, borderColor: '#00f3ff', borderWidth: 2, fill: true, backgroundColor: 'rgba(0, 243, 255, 0.05)', tension: 0.5, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { font: { size: 7 } } } } } });
-            if(ctx2) distChart = new Chart(ctx2, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 6, font: { size: 7 } } } } } });
+            const ctx1 = document.getElementById('telemetryChart').getContext('2d'), ctx2 = document.getElementById('distributionChart').getContext('2d');
+            const textColor = getComputedStyle(document.body).getPropertyValue('--text-dim').trim();
+            telChart = new Chart(ctx1, { type: 'line', data: { labels: Array(25).fill(''), datasets: [{ data: state.history, borderColor: '#6366f1', borderWidth: 4, fill: true, tension: 0.5, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { color: textColor, font: { size: 9, weight: 'bold' } } } } } });
+            distChart = new Chart(ctx2, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '82%', plugins: { legend: { position: 'bottom', labels: { color: textColor, font: { size: 10, weight: 'bold' }, boxWidth: 10 } } } } });
         }
 
-        function startLoop() {
+        function startSimLoop() {
             setInterval(() => {
-                const now = new Date(); const clockStr = now.toLocaleTimeString([], { hour12: false });
-                window.safeSetText('current-clock', clockStr);
-                let total = 0, healthSum = 0;
+                const now = new Date(); window.safeSetText('current-clock', now.toLocaleTimeString());
+                let total = 0;
                 devices.forEach(d => {
-                    if(d.startTime === clockStr && !d.on) window.toggleDevice(d.id, true);
-                    if(d.stopTime === clockStr && d.on) window.toggleDevice(d.id, false);
                     if(d.on && d.flowReady) {
                         let load = d.engine.getLoad(); if(state.ecoMode) load *= 0.65;
-                        d.currentLoad = load; total += load; d.health -= 0.001; d.runtime += 1/3600;
-                        window.safeSetText(`load-val-${d.id}`, load.toFixed(2) + "kW");
-                    } else { d.currentLoad = 0; window.safeSetText(`load-val-${d.id}`, d.isConnecting ? "LINKING" : "OFF"); }
-                    healthSum += d.health;
+                        d.currentLoad = load; total += load;
+                    } else d.currentLoad = 0;
                 });
                 state.totalLoad = total; state.history.push(total); state.history.shift();
                 window.safeSetText('hud-load', total.toFixed(2) + "kW"); window.safeSetText('hud-cost', "₹" + (total * 8.5 / 24).toFixed(2));
-                window.safeSetText('health-pct', Math.max(0, Math.round(healthSum/devices.length)) + "%");
-                const hB = document.getElementById('health-bar'); if (hB) hB.style.width = Math.max(0, healthSum/devices.length) + "%";
-                if(distChart) {
-                    const active = devices.filter(d => d.on && d.flowReady);
-                    distChart.data.labels = active.map(d => d.name);
-                    distChart.data.datasets[0].data = active.map(d => d.currentLoad);
-                    distChart.data.datasets[0].backgroundColor = active.map(d => d.color);
-                    distChart.update('none');
+                
+                if(distChart) { 
+                    const active = devices.filter(d => d.on && d.flowReady); 
+                    distChart.data.labels = active.map(x=>x.name); 
+                    distChart.data.datasets[0].data = active.map(x=>x.currentLoad); 
+                    distChart.data.datasets[0].backgroundColor = active.map(x=>x.color); 
+                    distChart.update('none'); 
                 }
                 if(telChart) { telChart.data.datasets[0].data = state.history; telChart.update('none'); }
+                renderDeviceList();
             }, 1000);
         }
 
-        function initAll() { 
-            window.loadState(); lucide.createIcons(); init3D(); initCharts(); renderDevices(); startLoop(); initClockFace(); 
-            window.addLog("Grid Expansion Synchronized.", "success");
+        function initDashboard() {
+            devices = deviceDefinitions.map(def => ({ ...def, on: false, flowReady: false, negotiating: false, engine: new ConsumptionProfile(def.base, def.varc) }));
+            renderRadialNodes(); 
+            initCharts(); 
+            startSimLoop(); 
+            animate();
+            window.addLog("Neural Infrastructure Mapping Complete.", "success");
         }
-        
-        window.onresize = () => { 
-            const c = document.getElementById('three-container');
-            if(state.three.camera && state.three.renderer && c) { 
-                state.three.camera.aspect = c.clientWidth / c.clientHeight; 
-                state.three.camera.updateProjectionMatrix(); 
-                state.three.renderer.setSize(c.clientWidth, c.clientHeight); 
-                updateCamera();
-            } 
-        };
+
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.text("Nexus Prime Grid Audit", 20, 20); doc.text(`Timestamp: ${new Date().toLocaleString()}`, 20, 30); doc.text(`Total Load: ${state.totalLoad.toFixed(2)} kW`, 20, 40);
+            doc.save("grid-audit.pdf"); window.showToast("Report Exported", "success");
+        }
+
+        window.onresize = () => { if(devices.length) renderRadialNodes(); };
     </script>
 </body>
 </html>
