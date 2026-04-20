@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberS3 | Tactical OS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Fira+Code:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sky-blue: #00d4ff;
+            --deep-navy: #010816;
+            --alert-red: #ff3e3e;
+            --defend-cyan: #00fff2;
+            --glass-bg: rgba(0, 212, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background: var(--deep-navy);
+            color: var(--sky-blue);
+            font-family: 'Fira Code', monospace;
+            overflow: hidden;
+        }
+
+        .font-hud { font-family: 'Orbitron', sans-serif; }
+
+        .cyber-glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .view {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            height: 100vh;
+            width: 100vw;
+            flex-direction: column;
+        }
+        .view.active { display: flex; animation: slideIn 0.6s cubic-bezier(0.2, 1, 0.3, 1); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(30px); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        /* Orbital Nexus */
+        #main-menu {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+            position: relative;
+        }
+
+        .nexus-core {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .orbit-ring {
+            position: absolute;
+            width: 100%; height: 100%;
+            border: 1px dashed rgba(0, 212, 255, 0.2);
+            border-radius: 50%;
+            animation: rotate-orbit 40s linear infinite;
+        }
+
+        @keyframes rotate-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .module-node-wrapper {
+            position: absolute;
+            width: 140px; height: 140px;
+            top: 50%; left: 50%;
+            margin-top: -70px; margin-left: -70px;
+        }
+
+        .pos-1 { transform: rotate(0deg) translateY(-240px) rotate(0deg); }
+        .pos-2 { transform: rotate(120deg) translateY(-240px) rotate(-120deg); }
+        .pos-3 { transform: rotate(240deg) translateY(-240px) rotate(-240deg); }
+
+        .module-node {
+            width: 100%; height: 100%;
+            background: rgba(0, 15, 40, 0.95);
+            border: 2px solid var(--sky-blue);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.3s ease;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            animation: counter-rotate 40s linear infinite;
+        }
+
+        @keyframes counter-rotate { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+
+        .module-node:hover {
+            background: var(--sky-blue);
+            color: var(--deep-navy);
+            box-shadow: 0 0 30px var(--sky-blue);
+            transform: scale(1.15);
+        }
+
+        /* Battle Layout */
+        .contested-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr 250px;
+            flex: 1; /* Allow center to grow/shrink between header and footer */
+            min-height: 0; 
+        }
+
+        .actor-side {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            border-right: 1px solid rgba(0, 212, 255, 0.1);
+            position: relative;
+        }
+
+        .actor-side.defender { border-right: none; border-left: 1px solid rgba(0, 212, 255, 0.1); }
+
+        /* Character Visuals */
+        .character-container {
+            width: 120px;
+            height: 150px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .human-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .typing-hands-anim {
+            animation: type-anim 0.2s infinite alternate;
+        }
+
+        @keyframes type-anim {
+            from { transform: translateY(0); }
+            to { transform: translateY(-4px); }
+        }
+
+        /* Side Screen Displays */
+        .side-screen {
+            width: 180px;
+            height: 100px;
+            background: #000;
+            border: 2px solid currentColor;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 0.7rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 0 10px currentColor;
+            position: relative;
+        }
+
+        .side-screen::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 0, 0) 50%, rgba(0, 0, 0, 0.2) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 2px, 2px 100%;
+            pointer-events: none;
+        }
+
+        .screen-text {
+            word-break: break-all;
+            animation: text-flicker 0.1s infinite;
+        }
+
+        @keyframes text-flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.9; }
+        }
+
+        /* OS Footer Fixes */
+        .os-footer {
+            height: 240px;
+            background: rgba(0, 5, 15, 0.98);
+            border-top: 3px solid var(--sky-blue);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0; /* Prevents footer from collapsing */
+        }
+
+        .console-log {
+            flex-grow: 1;
+            padding: 15px 40px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            scrollbar-width: thin;
+            color: rgba(0, 212, 255, 0.7);
+        }
+
+        .input-bar {
+            height: 70px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            padding: 0 40px;
+            border-top: 1px solid rgba(0, 212, 255, 0.3);
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .cmd-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--sky-blue);
+            flex-grow: 1;
+            margin-left: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            font-family: 'Fira Code', monospace;
+            caret-color: var(--sky-blue);
+        }
+
+        .cmd-input::placeholder {
+            color: rgba(0, 212, 255, 0.2);
+            font-style: italic;
+            font-size: 1rem;
+        }
+
+        /* Flow Animations */
+        .data-stream {
+            position: absolute;
+            height: 3px;
+            border-radius: 2px;
+            z-index: 50;
+        }
+        .stream-attack { background: var(--alert-red); box-shadow: 0 0 15px var(--alert-red); }
+        .stream-defend { background: var(--defend-cyan); box-shadow: 0 0 15px var(--defend-cyan); }
+
+        /* Breach Alert */
+        #emergency-alert {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(255, 0, 0, 0.2);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            pointer-events: none;
+        }
+
+        .alert-card {
+            background: #000;
+            border: 4px solid var(--alert-red);
+            padding: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="emergency-alert">
+        <div class="alert-card">
+            <h1 class="font-hud text-5xl font-black text-red-500 mb-2">!! ALERT !!</h1>
+            <p class="text-white text-lg uppercase tracking-widest">Infiltration detected in your network!</p>
+        </div>
+    </div>
+
+    <!-- BOOT UP -->
+    <div id="boot-overlay" class="fixed inset-0 z-[10000] bg-black flex flex-col items-center justify-center">
+        <div class="text-center">
+            <h1 class="font-hud text-8xl font-black italic mb-6 tracking-tighter text-cyan-400">CyberS3</h1>
+            <div class="w-[450px] h-2 bg-blue-900 rounded-full overflow-hidden mb-4">
+                <div id="boot-bar" class="h-full bg-cyan-400 w-0 transition-all duration-300"></div>
+            </div>
+            <p id="boot-status" class="text-xs font-mono text-cyan-800 uppercase tracking-[0.4em]">Establishing secure link...</p>
+        </div>
+        <button id="boot-btn" class="mt-8 px-12 py-3 border-2 border-cyan-400 text-cyan-400 font-bold hover:bg-cyan-400 hover:text-black transition hidden text-lg uppercase">Launch System</button>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="view-dashboard" class="view active">
+        <header class="h-20 p-8 flex justify-between items-center">
+            <div class="font-hud text-3xl font-black italic tracking-tighter text-cyan-400">CyberS3 Tactical</div>
+            <div class="text-right text-[10px] opacity-40 font-mono uppercase">Satellite Uplink: Stable // User: Operator</div>
+        </header>
+
+        <main id="main-menu">
+            <div class="nexus-core">
+                <div class="orbit-ring">
+                    <div class="module-node-wrapper pos-1"><div class="module-node" onclick="launchMod('shadow-trace')"><span class="font-black text-xs uppercase text-center">Shadow<br>Trace</span></div></div>
+                    <div class="module-node-wrapper pos-2"><div class="module-node" onclick="launchMod('sqli-vision')"><span class="font-black text-xs uppercase text-center">SQLi<br>Vision</span></div></div>
+                    <div class="module-node-wrapper pos-3"><div class="module-node" onclick="launchMod('bio-shield')"><span class="font-black text-xs uppercase text-center">Bio<br>Shield</span></div></div>
+                </div>
+                <div class="absolute w-36 h-36 border-2 border-cyan-400/20 rounded-full flex items-center justify-center">
+                    <div class="w-20 h-20 border-2 border-cyan-400 rounded-full animate-pulse shadow-[0_0_20px_rgba(0,212,255,0.3)]"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODULE INTERFACE -->
+    <div id="view-module" class="view">
+        <header class="h-16 flex items-center justify-between px-10 border-b border-white/10 cyber-glass flex-shrink-0">
+            <div class="flex items-center gap-6">
+                <h1 id="active-mod-name" class="font-hud text-2xl font-black italic">MODULE</h1>
+                <div id="status-chip" class="px-3 py-1 bg-cyan-900/40 text-[9px] font-bold border border-cyan-500/50 uppercase">Safety: Active</div>
+            </div>
+            <button onclick="quitMod()" class="px-6 py-1 border border-red-500/50 text-red-500 text-[9px] font-bold hover:bg-red-500 hover:text-black transition uppercase">Disconnect</button>
+        </header>
+
+        <main class="contested-layout">
+            <!-- LEFT: ATTACKER NODE -->
+            <div class="actor-side attacker text-red-500">
+                <div class="character-container" id="attacker-char">
+                    <svg class="human-svg" viewBox="0 0 100 120">
+                        <circle cx="50" cy="35" r="15" fill="currentColor" opacity="0.8"/>
+                        <path d="M20 110 Q50 60 80 110" stroke="currentColor" stroke-width="15" fill="none"/>
+                        <g id="hacker-hands" opacity="0.6">
+                            <rect x="35" y="85" width="10" height="5" fill="currentColor"/>
+                            <rect x="55" y="85" width="10" height="5" fill="currentColor"/>
+                        </g>
+                    </svg>
+                </div>
+                <div class="side-screen">
+                    <div id="attacker-screen-text" class="screen-text font-mono text-[8px]">HACK_OS_NODE<br>AWAITING_COMMAND...</div>
+                </div>
+                <div class="text-[9px] uppercase font-bold tracking-widest opacity-60">Attacker Console</div>
+            </div>
+
+            <!-- CENTER: VISUAL BATTLEFIELD -->
+            <div id="canvas-container" class="relative overflow-hidden bg-black/40"></div>
+
+            <!-- RIGHT: DEFENDER NODE -->
+            <div class="actor-side defender text-cyan-400">
+                <div class="character-container" id="defender-char">
+                    <svg class="human-svg" viewBox="0 0 100 120">
+                        <circle cx="50" cy="35" r="15" fill="currentColor" opacity="0.8"/>
+                        <path d="M50 20 L50 10 M35 35 L25 35" stroke="currentColor" stroke-width="2"/>
+                        <path d="M20 110 Q50 70 80 110" stroke="currentColor" stroke-width="12" fill="none"/>
+                        <g id="defender-hands" opacity="0.6">
+                            <rect x="30" y="85" width="12" height="6" fill="currentColor"/>
+                            <rect x="58" y="85" width="12" height="6" fill="currentColor"/>
+                        </g>
+                    </svg>
+                </div>
+                <div class="side-screen">
+                    <div id="defender-screen-text" class="screen-text font-mono text-[8px]">CORE_SECURE<br>MONITORING_TRAFFIC...</div>
+                </div>
+                <div class="text-[9px] uppercase font-bold tracking-widest opacity-60">Security Console</div>
+            </div>
+        </main>
+
+        <!-- OS FOOTER -->
+        <footer class="os-footer">
+            <div id="console-display" class="console-log font-mono"></div>
+            <div class="input-bar">
+                <span class="text-cyan-400 font-bold font-hud text-xs tracking-widest uppercase">Operator Input:</span>
+                <input type="text" id="user-cmd" class="cmd-input" placeholder="Enter command and press ENTER..." autofocus autocomplete="off">
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // --- BOOT ENGINE ---
+        const bootBar = document.getElementById('boot-bar');
+        const bootBtn = document.getElementById('boot-btn');
+        const bootStatus = document.getElementById('boot-status');
+        const bootSteps = ["Initializing core...", "Syncing terminals...", "Starting JARVIS...", "System ready."];
+        let p = 0;
+
+        const bootInt = setInterval(() => {
+            p += 2;
+            bootBar.style.width = p + '%';
+            if (p % 25 === 0) bootStatus.innerText = bootSteps[p/25-1] || bootSteps[3];
+            if (p >= 100) { clearInterval(bootInt); bootBtn.classList.remove('hidden'); }
+        }, 30);
+
+        bootBtn.onclick = () => {
+            document.getElementById('boot-overlay').style.opacity = '0';
+            setTimeout(() => document.getElementById('boot-overlay').style.display = 'none', 500);
+        };
+
+        // --- MODULE CONFIG ---
+        let activeId = null;
+        let gameState = 'ready'; 
+
+        const modules = {
+            'shadow-trace': {
+                name: 'SHADOW-TRACE',
+                guide: 'Command: infect-node (Start Attack)',
+                howAttack: 'Breaching network boundary. Sending encrypted packets to Node-A.',
+                attackCmd: 'infect-node',
+                guideDef: 'Action: close-gate (Emergency Fix)',
+                howDefend: 'Isolating contaminated segment. Routing traffic through redundant paths.',
+                defendCmd: 'close-gate'
+            },
+            'sqli-vision': {
+                name: 'SQLI-VISION',
+                guide: 'Command: run-sqli (Hack Database)',
+                howAttack: 'Executing tautology injection. Bypassing logical validation gates.',
+                attackCmd: 'run-sqli',
+                guideDef: 'Action: clean-filters (Restore Logic)',
+                howDefend: 'Sanitizing input parameters. Re-binding relational entities.',
+                defendCmd: 'clean-filters'
+            },
+            'bio-shield': {
+                name: 'BIO-SHIELD',
+                guide: 'Command: flood-traffic (Start DDoS)',
+                howAttack: 'Initiating volumetric surge. Sinking server resources.',
+                attackCmd: 'flood-traffic',
+                guideDef: 'Action: use-smart-shield (Scrub Traffic)',
+                howDefend: 'Enabling heuristic patterns. Deleting non-human connection packets.',
+                defendCmd: 'use-smart-shield'
+            }
+        };
+
+        function launchMod(id) {
+            activeId = id;
+            gameState = 'ready';
+            document.getElementById('view-dashboard').classList.remove('active');
+            document.getElementById('view-module').classList.add('active');
+            document.getElementById('active-mod-name').innerText = modules[id].name;
+            document.getElementById('console-display').innerHTML = '';
+            
+            printLog(`CyberS3 Tactical Interface: ${modules[id].name} initialized.`, 'guide');
+            printLog(`INSTRUCTION: Type "${modules[id].attackCmd}" to execute the attack protocol.`, 'guide');
+
+            if(id === 'shadow-trace') renderShadow();
+            if(id === 'sqli-vision') renderSQLi();
+            if(id === 'bio-shield') renderBio();
+            
+            setTimeout(() => document.getElementById('user-cmd').focus(), 500);
+        }
+
+        function quitMod() {
+            document.getElementById('view-module').classList.remove('active');
+            document.getElementById('view-dashboard').classList.add('active');
+            document.getElementById('canvas-container').innerHTML = '';
+            activeId = null;
+        }
+
+        function printLog(msg, type = 'info') {
+            const log = document.getElementById('console-display');
+            const color = type === 'error' ? 'text-red-500' : (type === 'guide' ? 'text-cyan-200' : 'text-cyan-500');
+            log.innerHTML += `<div class="${color} mb-1">> ${msg}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function showBreachAlert() {
+            const overlay = document.getElementById('emergency-alert');
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.style.display = 'none', 3000);
+        }
+
+        // --- COMMAND HANDLER ---
+        document.getElementById('user-cmd').addEventListener('keypress', function(e) {
+            if(e.key === 'Enter') {
+                const cmd = this.value.trim().toLowerCase();
+                this.value = '';
+                handleCommand(cmd);
+            }
+        });
+
+        async function handleCommand(cmd) {
+            const data = modules[activeId];
+            if (!cmd) return;
+            printLog(`EXECUTING: ${cmd}`);
+
+            if(gameState === 'ready' && cmd === data.attackCmd) {
+                gameState = 'breach';
+                
+                document.getElementById('attacker-screen-text').innerText = `EXECUTING:\n${cmd.toUpperCase()}\n\nTARGET: CORE_NODE\nSTATUS: RUNNING...`;
+                document.getElementById('hacker-hands').classList.add('typing-hands-anim');
+
+                printLog(`ATTACK LOG: ${data.howAttack}`, 'error');
+                for(let i=0; i<12; i++) { setTimeout(() => animateFlow(true), i * 150); }
+                
+                await new Promise(r => setTimeout(r, 2000));
+                showBreachAlert();
+                
+                const chip = document.getElementById('status-chip');
+                chip.innerText = 'System: BREACHED';
+                chip.className = 'px-3 py-1 bg-red-900/40 text-red-400 text-[9px] font-bold border border-red-500/50 uppercase';
+                
+                runVisualBreach();
+                printLog(`SYSTEM NOTIFICATION: Intruder detected in segment 01.`, 'error');
+                printLog(`TACTICAL GUIDE: Enter "${data.defendCmd}" to neutralize the threat.`, 'guide');
+                document.getElementById('hacker-hands').classList.remove('typing-hands-anim');
+            } 
+            else if(gameState === 'breach' && cmd === data.defendCmd) {
+                gameState = 'secured';
+
+                document.getElementById('defender-screen-text').innerText = `RUNNING:\n${cmd.toUpperCase()}\n\nPURGING_ROOTKIT\nINTEGRITY: 99%`;
+                document.getElementById('defender-hands').classList.add('typing-hands-anim');
+
+                printLog(`DEFENSE LOG: ${data.howDefend}`, 'guide');
+                for(let i=0; i<15; i++) { setTimeout(() => animateFlow(false), i * 150); }
+
+                await new Promise(r => setTimeout(r, 2000));
+                const chip = document.getElementById('status-chip');
+                chip.innerText = 'System: SECURED';
+                chip.className = 'px-3 py-1 bg-green-900/40 text-green-400 text-[9px] font-bold border border-green-500/50 uppercase';
+                
+                runVisualDefense();
+                printLog(`SUCCESS: Perimeter re-established. Malicious nodes removed.`, 'guide');
+                document.getElementById('defender-hands').classList.remove('typing-hands-anim');
+            }
+            else {
+                printLog(`ERROR: Invalid command sequence for current operational phase.`, 'error');
+            }
+        }
+
+        // --- FLOW ANIMATIONS ---
+        function animateFlow(fromLeft) {
+            const container = document.getElementById('canvas-container');
+            const line = document.createElement('div');
+            line.className = `data-stream ${fromLeft ? 'stream-attack' : 'stream-defend'}`;
+            line.style.top = Math.random() * 80 + 10 + '%';
+            line.style.width = '0%';
+            
+            if(fromLeft) {
+                line.style.left = '0';
+                container.appendChild(line);
+                let w = 0;
+                const int = setInterval(() => {
+                    w += 4;
+                    line.style.width = w + '%';
+                    if(w >= 100) { clearInterval(int); setTimeout(() => line.remove(), 500); }
+                }, 15);
+            } else {
+                line.style.right = '0';
+                container.appendChild(line);
+                let w = 0;
+                const int = setInterval(() => {
+                    w += 4;
+                    line.style.width = w + '%';
+                    if(w >= 100) { clearInterval(int); setTimeout(() => line.remove(), 500); }
+                }, 15);
+            }
+        }
+
+        function renderShadow() {
+            const host = document.getElementById('canvas-container');
+            host.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 600 400">
+                <line x1="150" y1="200" x2="350" y2="200" stroke="rgba(0, 212, 255, 0.2)" stroke-width="2" id="s-link" />
+                <circle cx="150" cy="200" r="25" fill="#010816" stroke="var(--sky-blue)" stroke-width="2" id="node-a" />
+                <circle cx="350" cy="200" r="25" fill="#010816" stroke="var(--sky-blue)" stroke-width="2" id="node-b" />
+            </svg>`;
+        }
+
+        let cubes = [];
+        function renderSQLi() {
+            cubes = [];
+            const host = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, host.clientWidth/host.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(host.clientWidth, host.clientHeight);
+            host.appendChild(renderer.domElement);
+
+            for(let i=0; i<8; i++) {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x00d4ff, wireframe: true }));
+                mesh.position.set((i%2-0.5)*2.5, (Math.floor(i/2)%2-0.5)*2.5, (Math.floor(i/4)%2-0.5)*2.5);
+                mesh.userData.home = mesh.position.clone();
+                scene.add(mesh);
+                cubes.push(mesh);
+            }
+            const l = new THREE.PointLight(0xffffff, 1, 100); l.position.set(10,10,10);
+            scene.add(l); scene.add(new THREE.AmbientLight(0x202020));
+            camera.position.z = 10;
+            function anim() { if(activeId === 'sqli-vision') { requestAnimationFrame(anim); cubes.forEach(c => c.rotation.y += 0.01); renderer.render(scene, camera); } }
+            anim();
+        }
+
+        let particles = [];
+        function renderBio() {
+            const host = document.getElementById('canvas-container');
+            const canvas = document.createElement('canvas');
+            canvas.width = host.clientWidth; canvas.height = host.clientHeight;
+            host.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            function loop() {
+                if(activeId !== 'bio-shield') return;
+                ctx.fillStyle = 'rgba(1, 8, 22, 0.2)';
+                ctx.fillRect(0,0,canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.x += p.speed;
+                    if(p.x > canvas.width) p.x = -10;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, 4, 4);
+                });
+                requestAnimationFrame(loop);
+            }
+            particles = [];
+            for(let i=0; i<80; i++) particles.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, speed: 2+Math.random()*4, color: '#00d4ff'});
+            loop();
+        }
+
+        function runVisualBreach() {
+            if(activeId === 'shadow-trace') {
+                document.getElementById('node-a').setAttribute('stroke', 'var(--alert-red)');
+                document.getElementById('s-link').setAttribute('stroke', 'var(--alert-red)');
+                document.getElementById('s-link').setAttribute('stroke-width', '4');
+            }
+            if(activeId === 'sqli-vision') {
+                cubes.forEach(c => { c.material.color.setHex(0xff3e3e); c.position.multiplyScalar(1.8); c.material.wireframe = false; });
+            }
+            if(activeId === 'bio-shield') {
+                particles.forEach(p => { if(Math.random() > 0.5) p.color = '#ff3e3e'; });
+            }
+        }
+
+        function runVisualDefense() {
+            if(activeId === 'shadow-trace') {
+                document.getElementById('s-link').setAttribute('stroke', 'var(--defend-cyan)');
+                document.getElementById('node-a').setAttribute('stroke', 'var(--sky-blue)');
+            }
+            if(activeId === 'sqli-vision') {
+                cubes.forEach(c => { c.material.color.setHex(0x00fff2); c.material.wireframe = true; c.position.copy(c.userData.home); });
+            }
+            if(activeId === 'bio-shield') {
+                particles.forEach(p => p.color = '#00fff2');
+            }
+        }
+    </script>
+</body>
+</html>
