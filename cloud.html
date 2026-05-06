@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS FinOps Master | Cloud Cost Optimization Analysis Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+        :root {
+            --aws-orange: #FF9900;
+            --aws-navy: #232F3E;
+            --aws-squid: #161E2D;
+            --success: #1D8102;
+            --bg-dark: #0F172A;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--aws-squid);
+            color: #f8fafc;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-font { font-family: 'Fira+Code', monospace; }
+
+        .glass {
+            background: rgba(35, 47, 62, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .locked {
+            opacity: 0.25;
+            pointer-events: none;
+            filter: blur(1px) grayscale(1);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pulse-aws {
+            0% { transform: scale(0.95); opacity: 0.4; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        .active-pulse::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: inherit;
+            border: 2px solid var(--aws-orange);
+            animation: pulse-aws 2s infinite;
+        }
+
+        .network-line {
+            stroke-dasharray: 6;
+            stroke-dashoffset: 0;
+            transition: all 0.5s ease;
+        }
+
+        .line-active {
+            animation: dash-flow 4s linear infinite;
+        }
+
+        @keyframes dash-flow {
+            to { stroke-dashoffset: -60; }
+        }
+
+        .cursor-blink {
+            animation: blink 1.2s step-end infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+        
+        .card-header {
+            @apply text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between border-b border-white/10 pb-2;
+        }
+
+        .btn-aws {
+            background: linear-gradient(135deg, #FF9900 0%, #EC7211 100%);
+            @apply hover:opacity-90 active:scale-95 transition-all;
+        }
+
+        .region-badge {
+            @apply px-2 py-0.5 bg-slate-700/50 rounded text-[9px] font-bold text-slate-300;
+        }
+    </style>
+</head>
+<body class="p-4 gap-4">
+
+    <!-- Global Navigation & Health -->
+    <header class="flex flex-none justify-between items-center bg-[#232F3E] p-4 rounded-xl border border-white/5 shadow-2xl">
+        <div class="flex items-center gap-6">
+            <div class="p-2.5 btn-aws rounded-lg shadow-xl shadow-orange-950/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-black tracking-tighter text-white uppercase italic">CloudOptimize <span class="text-orange-500 font-black">AWS Enterprise</span></h1>
+                <div class="flex gap-4 text-[9px] text-slate-400 uppercase font-bold tracking-widest mt-1">
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> Analysis: <span id="sys-status" class="text-orange-400">Ready</span></span>
+                    <span>•</span>
+                    <span>MTD Savings: <span id="save-count" class="text-emerald-500">$0.00</span></span>
+                    <span>•</span>
+                    <span>Efficiency Score: <span id="eff-score" class="text-red-500">62%</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 bg-slate-900/60 p-1.5 pr-6 rounded-full border border-white/10">
+            <div class="w-10 h-10 rounded-full bg-[#EC7211] flex items-center justify-center text-white font-black text-lg shadow-lg relative">
+                <span class="absolute -top-1 -right-1 flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span></span>
+                F
+            </div>
+            <div class="text-[11px]">
+                <p class="font-black text-slate-200">FinOps Engine</p>
+                <p id="avatar-msg" class="text-slate-500 font-semibold tracking-tight">"Awaiting IAM Handshake to begin ingestion."</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Operational Grid -->
+    <main class="flex-1 grid grid-cols-12 gap-4 min-h-0">
+        
+        <!-- Left: Connectivity & Ingestion -->
+        <div class="col-span-3 flex flex-col gap-4 min-h-0">
+            <!-- Data Ingestion Control -->
+            <section class="glass rounded-2xl p-5 shrink-0 shadow-xl border-l-4 border-l-orange-500">
+                <div class="card-header">
+                    <span>1. Data Ingestion & IAM</span>
+                    <span id="res-badge" class="px-2 py-0.5 bg-slate-800 text-slate-500 rounded text-[8px] font-black uppercase">Offline</span>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-slate-900/40 p-3.5 rounded-xl border border-white/5">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-[11px] font-bold text-slate-200">Billing CUR Access</span>
+                            <button onclick="startAction('cur')" id="btn-cur" class="text-[9px] btn-aws px-4 py-1.5 rounded-md font-black uppercase">Auth</button>
+                        </div>
+                        <div class="h-1 bg-slate-950 rounded-full overflow-hidden">
+                            <div id="bar-cur" class="h-full bg-orange-500 w-0 transition-all duration-[2000ms]"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/40 p-3.5 rounded-xl border border-white/5">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-[11px] font-bold text-slate-200">Resource Tagger</span>
+                            <button onclick="startAction('tag')" id="btn-tag" class="text-[9px] bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-md transition-all font-black uppercase">Enable</button>
+                        </div>
+                        <div class="h-1 bg-slate-950 rounded-full overflow-hidden">
+                            <div id="bar-tag" class="h-full bg-blue-500 w-0 transition-all duration-[2500ms]"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Metadata & Inventory Discovery -->
+            <section id="section-inventory" class="glass rounded-2xl p-5 flex-1 flex flex-col locked shadow-xl">
+                <div class="card-header">
+                    <span>2. Resource Discovery</span>
+                </div>
+                <div class="space-y-3 flex-1 overflow-y-auto pr-1">
+                    <div class="bg-[#1a2533] p-4 rounded-xl border border-white/5 flex items-center justify-between group hover:border-orange-500/50 transition-all">
+                        <div>
+                            <p class="text-[11px] font-black text-slate-100">EC2 Compute Fleet</p>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Scanning M-Class, C-Class</p>
+                        </div>
+                        <button onclick="discover('ec2')" id="btn-ec2" class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-orange-500 transition-all text-slate-400 hover:text-white shadow-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        </button>
+                    </div>
+                    <div class="bg-[#1a2533] p-4 rounded-xl border border-white/5 flex items-center justify-between group hover:border-blue-500/50 transition-all">
+                        <div>
+                            <p class="text-[11px] font-black text-slate-100">RDS Database Nodes</p>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Aurora, Multi-AZ Analysis</p>
+                        </div>
+                        <button onclick="discover('rds')" id="btn-rds" class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-blue-600 transition-all text-slate-400 hover:text-white shadow-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                        </button>
+                    </div>
+                    <div class="bg-[#1a2533] p-4 rounded-xl border border-white/5 flex items-center justify-between group hover:border-emerald-500/50 transition-all">
+                        <div>
+                            <p class="text-[11px] font-black text-slate-100">S3 Object Store</p>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Bucket Age & Policy Check</p>
+                        </div>
+                        <button onclick="discover('s3')" id="btn-s3" class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-emerald-600 transition-all text-slate-400 hover:text-white shadow-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2m16 0h-2M4 13h2m0 0v-3a2 2 0 012-2h8a2 2 0 012 2v3m-10 0h10"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-5 pt-4 border-t border-white/10 space-y-2.5">
+                    <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                        <span>Analysis Scan Coverage</span>
+                        <span id="scan-usage" class="text-orange-400">0%</span>
+                    </div>
+                    <div class="h-2 bg-slate-950 rounded-full p-[2px]">
+                        <div id="scan-bar" class="h-full bg-gradient-to-r from-orange-500 to-amber-400 w-0 transition-all duration-1000 rounded-full"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Center: Topology & Management CLI -->
+        <div class="col-span-6 flex flex-col gap-4 min-h-0">
+            <!-- Multi-Region Map -->
+            <section class="glass rounded-2xl p-6 flex-[1.4] relative shadow-2xl overflow-hidden border-t-2 border-t-slate-600">
+                <div class="card-header border-none mb-0">
+                    <span class="flex items-center gap-2"><svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.382 0z"></path></svg> Cloud Infrastructure Map</span>
+                    <div class="flex gap-2">
+                        <span class="region-badge">us-east-1</span>
+                        <span class="region-badge">eu-central-1</span>
+                    </div>
+                </div>
+                <div class="flex-1 flex items-center justify-center">
+                    <svg viewBox="0 0 600 300" class="w-full h-full max-h-[350px]">
+                        <!-- Backbone Routes -->
+                        <path id="path-root" d="M 50 150 L 220 150" fill="none" stroke="#2D3748" stroke-width="2.5" class="network-line" />
+                        <path id="path-ec2" d="M 280 150 L 480 70" fill="none" stroke="#2D3748" stroke-width="2.5" class="network-line" />
+                        <path id="path-rds" d="M 280 150 L 480 150" fill="none" stroke="#2D3748" stroke-width="2.5" class="network-line" />
+                        <path id="path-s3" d="M 280 150 L 480 230" fill="none" stroke="#2D3748" stroke-width="2.5" class="network-line" />
+
+                        <!-- AWS Organizations Core -->
+                        <g id="node-root">
+                            <circle cx="50" cy="150" r="35" fill="#161E2D" stroke="#FF9900" stroke-width="3" />
+                            <text x="50" y="205" text-anchor="middle" fill="#FF9900" class="text-[10px] font-black uppercase">Master Payer</text>
+                        </g>
+
+                        <!-- Central Analysis Engine -->
+                        <g id="node-engine" class="opacity-10 transition-all duration-700">
+                            <rect x="220" y="115" width="60" height="70" rx="12" fill="#161E2D" stroke="#FF9900" stroke-width="2" />
+                            <text x="250" y="202" text-anchor="middle" fill="#FF9900" class="text-[9px] font-black uppercase tracking-tighter">FINOPS-V2</text>
+                        </g>
+
+                        <!-- Service Nodes -->
+                        <g id="node-ec2" class="opacity-10 transition-all duration-700">
+                            <rect x="480" y="35" width="85" height="70" rx="14" fill="#161E2D" stroke="#FF9900" stroke-width="2" />
+                            <text x="522.5" y="75" text-anchor="middle" fill="#FF9900" class="text-[11px] font-black uppercase tracking-widest">EC2</text>
+                            <text x="522.5" y="88" text-anchor="middle" fill="#475569" class="text-[7px] font-bold">142 INSTANCES</text>
+                        </g>
+
+                        <g id="node-rds" class="opacity-10 transition-all duration-700">
+                            <rect x="480" y="115" width="85" height="70" rx="14" fill="#161E2D" stroke="#00A1E0" stroke-width="2" />
+                            <text x="522.5" y="155" text-anchor="middle" fill="#00A1E0" class="text-[11px] font-black uppercase tracking-widest">RDS</text>
+                            <text x="522.5" y="168" text-anchor="middle" fill="#475569" class="text-[7px] font-bold">8 CLUSTERS</text>
+                        </g>
+
+                        <g id="node-s3" class="opacity-10 transition-all duration-700">
+                            <rect x="480" y="195" width="85" height="70" rx="14" fill="#161E2D" stroke="#1D8102" stroke-width="2" />
+                            <text x="522.5" y="235" text-anchor="middle" fill="#1D8102" class="text-[11px] font-black uppercase tracking-widest">S3</text>
+                            <text x="522.5" y="248" text-anchor="middle" fill="#475569" class="text-[7px] font-bold">42 BUCKETS</text>
+                        </g>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- AWS CLI Simulation -->
+            <section id="section-terminal" class="glass rounded-2xl p-5 flex-1 min-h-0 locked shadow-xl">
+                <div class="card-header border-none mb-2">
+                    <span class="flex items-center gap-2"><svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg> FinOps CLI Console</span>
+                    <span class="text-[9px] bg-slate-900 px-2 py-1 rounded text-orange-500 font-bold">root@aws-finops:~$</span>
+                </div>
+                <div class="flex-1 bg-black/90 terminal-font p-5 rounded-xl border border-white/5 overflow-y-auto text-[11px] leading-relaxed text-orange-400 shadow-inner">
+                    <div id="term-out">initializing session... <br>authentication token valid. <br>ready for optimization requests. <span class="text-white cursor-blink">_</span></div>
+                </div>
+                <div class="mt-4 flex gap-3 overflow-x-auto pb-1">
+                    <button onclick="runOp('audit')" class="whitespace-nowrap px-4 py-2 bg-slate-800 rounded-lg text-[9px] font-black border border-white/10 hover:bg-slate-700 transition-all uppercase">Analyze Waste</button>
+                    <button onclick="runOp('resize')" class="whitespace-nowrap px-4 py-2 bg-slate-800 rounded-lg text-[9px] font-black border border-white/10 hover:bg-slate-700 transition-all uppercase">Rightsizing Projections</button>
+                    <button onclick="runOp('savings')" class="whitespace-nowrap px-4 py-2 bg-slate-800 rounded-lg text-[9px] font-black border border-white/10 hover:bg-slate-700 transition-all uppercase">Commitment Logic</button>
+                    <button onclick="runOp('auto')" class="whitespace-nowrap px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg text-[9px] font-black border border-emerald-500/20 hover:bg-emerald-600/30 transition-all uppercase tracking-widest">Execute Fix</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Right: Control Panel & Savings Intel -->
+        <div class="col-span-3 flex flex-col gap-4 min-h-0">
+            <!-- Automated Policies -->
+            <section id="section-actions" class="glass rounded-2xl p-5 flex-1 min-h-0 locked shadow-xl border-r-4 border-r-emerald-500">
+                <div class="card-header">
+                    <span>5. Optimization Policies</span>
+                </div>
+                <div class="flex-1 overflow-y-auto pr-1">
+                    <table class="w-full text-[10px] text-left">
+                        <thead class="text-slate-600 border-b border-white/10 sticky top-0 bg-[#232F3E] z-10">
+                            <tr><th class="pb-2 font-black uppercase">Policy</th><th class="pb-2 font-black uppercase">ROI</th><th class="pb-2 font-black uppercase">Action</th></tr>
+                        </thead>
+                        <tbody id="rule-list" class="text-slate-300 align-middle">
+                            <tr class="border-b border-white/5 group hover:bg-white/[0.03] transition-colors"><td class="py-3 font-bold">Unused EBS Purge</td><td class="py-3 text-emerald-400">+$240/m</td><td class="text-orange-500 font-black">DELETE</td></tr>
+                            <tr class="border-b border-white/5 group hover:bg-white/[0.03] transition-colors"><td class="py-3 font-bold">Idle EC2 Resize</td><td class="py-3 text-emerald-400">+$815/m</td><td class="text-blue-500 font-black">RESIZE</td></tr>
+                            <tr class="border-b border-white/5 group hover:bg-white/[0.03] transition-colors"><td class="py-3 font-bold">S3 Archive Sync</td><td class="py-3 text-emerald-400">+$1,420/m</td><td class="text-emerald-500 font-black">TIER</td></tr>
+                            <tr class="policy-hardened opacity-20 transition-all duration-700"><td class="py-3 font-bold">Reserved Ins.</td><td class="py-3 text-emerald-400">+$2,200/m</td><td id="ri-status" class="text-orange-400 font-black underline">PENDING</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pt-5 mt-auto">
+                    <button onclick="applyOptimization(this)" id="btn-apply" class="w-full py-4 btn-aws rounded-xl font-black text-[10px] uppercase tracking-[0.25em] shadow-xl">Apply All Optimizations</button>
+                </div>
+            </section>
+
+            <!-- Real-time Cost Feed -->
+            <section class="glass rounded-2xl p-5 flex-1 min-h-0 shadow-xl">
+                <div class="card-header">
+                    <span>Audit Event Stream</span>
+                    <span class="text-[8px] bg-slate-950 px-1.5 py-0.5 rounded text-slate-500">FinOps.log</span>
+                </div>
+                <div id="log-console" class="flex-1 terminal-font text-[10px] space-y-3 overflow-y-auto pr-1">
+                    <div class="text-blue-500/80 flex gap-2">
+                        <span class="opacity-30">14:02:01</span>
+                        <span>[MONITOR] Polling CloudWatch metrics...</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Project Conclusion / ROI Success Modal -->
+    <div id="modal" class="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-1000 backdrop-blur-2xl">
+        <div class="text-center p-12 glass rounded-[3rem] border-orange-500/30 max-w-xl shadow-[0_0_120px_rgba(255,153,0,0.1)]">
+            <div class="w-24 h-24 btn-aws rounded-full mx-auto mb-8 flex items-center justify-center text-white text-5xl shadow-2xl active-pulse relative">
+                <svg class="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h2 class="text-4xl font-black mb-4 text-white tracking-tighter italic uppercase underline decoration-orange-500 decoration-4 underline-offset-8">Cloud Efficiency Achieved</h2>
+            <p class="text-slate-400 text-sm font-medium leading-relaxed mb-12 px-8">Analysis tool has successfully reduced wasteful cloud expenditure by <span class="text-emerald-400 font-black">38% ($4,675 / month savings)</span>. Automated S3 Intelligent-Tiering and EC2 Rightsizing policies are now active across all audited regions.</p>
+            <button onclick="location.reload()" class="px-12 py-4 btn-aws rounded-full font-black uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all shadow-2xl">Restart FinOps Cycle</button>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            ingestion: { cur: 0, tag: 0 },
+            discovery: { ec2: false, rds: false, s3: false },
+            optimized: false
+        };
+
+        function addLog(msg, type = 'info') {
+            const colors = { info: 'text-slate-400', success: 'text-emerald-400', warning: 'text-amber-500', system: 'text-orange-400', error: 'text-red-500' };
+            const log = document.getElementById('log-console');
+            const entry = document.createElement('div');
+            entry.className = `${colors[type]} flex gap-2 animate-in fade-in slide-in-from-right-2 duration-300`;
+            entry.innerHTML = `<span class="opacity-30 shrink-0 font-bold">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span> <span class="leading-tight font-medium">${msg}</span>`;
+            log.prepend(entry);
+        }
+
+        function updateAvatar(msg) {
+            document.getElementById('avatar-msg').innerText = `"${msg}"`;
+        }
+
+        function checkIngestion() {
+            if (state.ingestion.cur === 100 && state.ingestion.tag === 100) {
+                document.getElementById('section-inventory').classList.remove('locked');
+                document.getElementById('res-badge').innerText = 'Online';
+                document.getElementById('res-badge').classList.replace('text-slate-500', 'text-emerald-400');
+                document.getElementById('res-badge').classList.add('bg-emerald-500/10');
+                updateAvatar("Ingestion tunnel active. Map the resource distribution now.");
+                addLog("AWS Master Payer Account synchronized with FinOps Engine.", "system");
+            }
+        }
+
+        function startAction(key) {
+            const btn = document.getElementById(`btn-${key}`);
+            const bar = document.getElementById(`bar-${key}`);
+            btn.disabled = true;
+            btn.innerText = "LINKING...";
+            btn.classList.add('opacity-50');
+            
+            setTimeout(() => {
+                bar.style.width = '100%';
+                state.ingestion[key] = 100;
+                setTimeout(() => {
+                    btn.innerText = "ACTIVE";
+                    btn.classList.replace('btn-aws', 'bg-slate-700');
+                    btn.classList.replace('bg-blue-600', 'bg-slate-700');
+                    btn.classList.remove('opacity-50');
+                    addLog(`API Handshake: ${key.toUpperCase()} data source verified.`, 'info');
+                    checkIngestion();
+                }, 2000);
+            }, 100);
+        }
+
+        function discover(key) {
+            const btn = document.getElementById(`btn-${key}`);
+            if (state.discovery[key]) return;
+
+            state.discovery[key] = true;
+            const colors = { ec2: 'bg-orange-500', rds: 'bg-blue-600', s3: 'bg-emerald-600' };
+            btn.classList.replace('bg-slate-800', colors[key]);
+            btn.classList.add('active-pulse');
+            btn.innerHTML = `<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>`;
+            
+            // UI Map Updates
+            document.getElementById(`node-${key}`).classList.replace('opacity-10', 'opacity-100');
+            document.getElementById(`node-engine`).classList.replace('opacity-10', 'opacity-100');
+            document.getElementById(`path-${key}`).classList.add('line-active');
+            document.getElementById(`path-${key}`).setAttribute('stroke', '#FF9900');
+            document.getElementById(`path-root`).classList.add('line-active');
+            document.getElementById(`path-root`).setAttribute('stroke', '#FF9900');
+
+            const count = Object.values(state.discovery).filter(v => v).length;
+            document.getElementById('scan-bar').style.width = `${(count / 3) * 100}%`;
+            document.getElementById('scan-usage').innerText = `${Math.round((count / 3) * 100)}%`;
+            addLog(`Resource Pool ${key.toUpperCase()} discovered. 42 cost anomalies detected.`, 'success');
+
+            if (count === 3) {
+                document.getElementById('section-terminal').classList.remove('locked');
+                document.getElementById('section-actions').classList.remove('locked');
+                document.getElementById('sys-status').innerText = 'Audit Live';
+                updateAvatar("Cloud Inventory complete. Execute Analysis to identify waste.");
+            }
+        }
+
+        function applyOptimization(btn) {
+            btn.disabled = true;
+            btn.innerText = "EXECUTING POLICIES...";
+            addLog("Pushing remediation scripts to AWS System Manager...", "system");
+            
+            setTimeout(() => {
+                state.optimized = true;
+                btn.innerText = "OPTIMIZED";
+                btn.classList.replace('btn-aws', 'bg-emerald-600');
+                document.querySelector('.policy-hardened').classList.remove('opacity-20');
+                document.getElementById('ri-status').innerText = 'ACTIVE';
+                document.getElementById('ri-status').classList.replace('text-orange-400', 'text-emerald-500');
+                document.getElementById('ri-status').classList.remove('underline');
+                document.getElementById('save-count').innerText = '$4,675.00';
+                document.getElementById('eff-score').innerText = '94%';
+                document.getElementById('eff-score').classList.replace('text-red-500', 'text-emerald-400');
+                updateAvatar("Waste eliminated. Cloud ROI increased by 38% month-over-month.");
+                addLog("Policy Delta: Rightsizing & S3 Archival logic confirmed.", "warning");
+            }, 2000);
+        }
+
+        function runOp(type) {
+            const out = document.getElementById('term-out');
+            let res = '';
+            
+            if (type === 'audit') res = `<br>aws-cli> analyzing cloudwatch usage metrics... <br>Found 18 idle EBS volumes (gp2) <br>Found 4 EC2 instances with <2% Avg CPU <br><span class="text-emerald-400">Total potential waste: $1,420.50/mo</span>`;
+            else if (type === 'resize') res = `<br>aws-cli> generating rightsizing report... <br>ID: i-0abc123 [m5.large] -> Recommend [t3.medium] <br>ID: i-0xyz456 [c5.4xlarge] -> Recommend [c5.2xlarge] <br><span class="text-orange-400">Net saving: $815.00/mo</span>`;
+            else if (type === 'savings') res = `<br>aws-cli> analyzing RI/Savings Plan coverage... <br>Current: 14.2% | Target: 85% <br>Suggested Purchase: 3-Year No-Upfront Compute Savings Plan <br><span class="text-emerald-400">Projected savings: $2,200.00/mo</span>`;
+            else if (type === 'auto') res = `<br>aws-cli> simulation complete. <br>Running 'aws ssm start-automation-execution'... <br>${state.optimized ? '<span class="text-emerald-400">Remediation Success: 42 resources modified.</span>' : '<span class="text-white">Awaiting "Apply All" execution signal.</span>'}`;
+
+            out.innerHTML += res;
+            out.scrollTop = out.scrollHeight;
+            addLog(`FinOps Audit: ${type.toUpperCase()} execution.`, state.optimized && type === 'auto' ? 'success' : 'info');
+
+            if (state.optimized && type === 'auto') {
+                setTimeout(() => {
+                    const m = document.getElementById('modal');
+                    m.classList.remove('pointer-events-none');
+                    m.classList.add('opacity-100');
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>
